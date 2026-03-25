@@ -1,4 +1,4 @@
-import { StateEnum, WebRTCPlayer } from '@webrtc-player';
+import { StateEnum, WebRTCPlayer } from '@webrtc-player/core';
 import { useEffect, useRef, useState } from 'react';
 
 function App() {

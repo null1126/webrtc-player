@@ -1,5 +1,5 @@
 {
-  "name": "webrtc-player",
+  "name": "@webrtc-player",
   "version": "1.0.0",
   "description": "WebRTC Player monorepo",
   "main": "index.js",

@@ -7,13 +7,23 @@ import { exit } from 'process';
  * @returns {Promise<string>} 发布结果
  */
 const publishPackage = async () => {
-  intro('发布中...');
-  const result = await execSync('pnpm publish', { stdio: 'inherit' });
-  outro('发布完成', {
-    text: '发布完成!',
-    textColor: 'green',
-  });
-  return result;
+  try {
+    intro('发布中...');
+    const result = await execSync('pnpm publish --no-git-checks --access public', {
+      stdio: 'inherit',
+    });
+    outro('发布完成', {
+      text: '发布完成!',
+      textColor: 'green',
+    });
+    return result;
+  } catch (error) {
+    outro('发布失败', {
+      text: '发布失败!',
+      textColor: 'red',
+    });
+    throw error;
+  }
 };
 
 /**
@@ -21,13 +31,21 @@ const publishPackage = async () => {
  * @returns {Promise<string>} 构建结果
  */
 const buildPackage = async () => {
-  intro('构建中...');
-  const result = await execSync('pnpm run build', { stdio: 'inherit' });
-  outro('构建完成', {
-    text: '构建完成!',
-    textColor: 'green',
-  });
-  return result;
+  try {
+    intro('构建中...');
+    const result = await execSync('pnpm run build', { stdio: 'inherit' });
+    outro('构建完成', {
+      text: '构建完成!',
+      textColor: 'green',
+    });
+    return result;
+  } catch (error) {
+    outro('构建失败', {
+      text: '构建失败!',
+      textColor: 'red',
+    });
+    throw error;
+  }
 };
 
 /**

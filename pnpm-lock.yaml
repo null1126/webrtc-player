@@ -89,7 +89,7 @@ importers:
 
   examples/react:
     dependencies:
-      '@webrtc-player':
+      '@webrtc-player/core':
         specifier: workspace:*
         version: link:../../packages/core
       react:

@@ -1,6 +1,7 @@
 import { select, intro, isCancel, cancel } from '@clack/prompts';
 import { execSync } from 'node:child_process';
 import { buildAndPublish } from './build.js';
+import { exit } from 'process';
 
 const runDev = async () => {
   execSync('pnpm dev', { stdio: 'inherit' });
@@ -27,7 +28,7 @@ const main = async () => {
   });
   if (isCancel(mode)) {
     cancel('已取消操作');
-    return;
+    exit(0);
   }
   await MODE_MAP[mode]();
 };
