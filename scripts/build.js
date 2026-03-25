@@ -1,4 +1,4 @@
-import { select, intro, outro, isCancel, cancel } from '@clack/prompts';
+import { select, intro, outro, isCancel, cancel, text } from '@clack/prompts';
 import { execSync } from 'child_process';
 import { exit } from 'process';
 
@@ -6,12 +6,23 @@ import { exit } from 'process';
  * 发布到 npm
  * @returns {Promise<string>} 发布结果
  */
-const publishPackage = async () => {
+const publishPackage = async (packageName) => {
   try {
     intro('发布中...');
-    const result = await execSync('pnpm publish --no-git-checks --access public', {
-      stdio: 'inherit',
+    const otp = await text({
+      message: '请输入您的 npm 二次验证码 (OTP):',
+      placeholder: '若未开启可直接回车',
+      validate: (value) => {
+        if (value && !/^\d{6}$/.test(value)) return '验证码通常为 6 位数字';
+      },
     });
+    const otpFlag = otp ? `--otp ${otp}` : '';
+    const result = await execSync(
+      `pnpm -r publish --filter=${packageName} --no-git-checks --access public ${otpFlag}`,
+      {
+        stdio: 'inherit',
+      }
+    );
     outro('发布完成', {
       text: '发布完成!',
       textColor: 'green',
@@ -30,10 +41,10 @@ const publishPackage = async () => {
  * 构建
  * @returns {Promise<string>} 构建结果
  */
-const buildPackage = async () => {
+const buildPackage = async (packageName) => {
   try {
     intro('构建中...');
-    const result = await execSync('pnpm run build', { stdio: 'inherit' });
+    const result = await execSync(`pnpm run build --filter=${packageName}`, { stdio: 'inherit' });
     outro('构建完成', {
       text: '构建完成!',
       textColor: 'green',
@@ -135,6 +146,6 @@ export const buildAndPublish = async () => {
       textColor: 'green',
     });
   }
-  await buildPackage();
-  await publishPackage();
+  await buildPackage(packages);
+  await publishPackage(packages);
 };
