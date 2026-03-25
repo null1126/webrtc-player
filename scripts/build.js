@@ -87,7 +87,7 @@ const selectUpdateVersion = async () => {
 const selectPublishPackage = async () => {
   const packages = await select({
     message: '请选择要发布的包?',
-    options: [{ label: '@webrtc-player', value: '@webrtc-player' }],
+    options: [{ label: '@webrtc-player/core', value: '@webrtc-player/core' }],
   });
   if (isCancel(packages)) {
     cancel('已取消发布操作');
