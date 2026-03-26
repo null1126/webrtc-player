@@ -19,8 +19,21 @@
     "docs:preview": "vitepress preview docs",
     "start": "node ./scripts/run.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "webrtc",
+    "player",
+    "video",
+    "streaming",
+    "realtime",
+    "webcam",
+    "media"
+  ],
+  "author": "null1126",
+  "homepage": "https://github.com/null1126/webrtc-player",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/null1126/webrtc-player"
+  },
   "license": "ISC",
   "config": {
     "cz-customizable": {

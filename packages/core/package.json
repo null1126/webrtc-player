@@ -13,7 +13,10 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "../../README.md",
+    "../../README_zh.md",
+    "../../LICENSE"
   ],
   "exports": {
     ".": "./dist/index.mjs",
@@ -24,8 +27,21 @@
     "dev": "tsup --watch",
     "build": "tsup"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "webrtc",
+    "player",
+    "video",
+    "streaming",
+    "realtime",
+    "webcam",
+    "media"
+  ],
+  "author": "null1126",
+  "homepage": "https://github.com/null1126/webrtc-player",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/null1126/webrtc-player"
+  },
   "license": "ISC",
   "packageManager": "pnpm@10.28.1"
 }

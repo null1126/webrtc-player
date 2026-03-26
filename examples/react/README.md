@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# WebRTC Player — React Example
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[WebRTC Player](https://github.com/null1126/webrtc-player) · [Core Package](https://www.npmjs.com/package/@webrtc-player/core) · [Documentation](https://github.com/null1126/webrtc-player)
 
-Currently, two official plugins are available:
+This is a React 19 + Vite + TypeScript example demonstrating how to use `@webrtc-player/core`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The example is part of the monorepo. From the repo root:
 
-## Expanding the ESLint configuration
+```bash
+# Install all dependencies
+pnpm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+# Start this example
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Or run it standalone:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+cd examples/react
+pnpm install
+pnpm dev
 ```
+
+---
+
+## Usage
+
+See the full API reference in the [core package README](../core/README.md).
+
+```tsx
+import { useEffect, useRef } from 'react';
+import { WebRTCPlayer, StateEnum } from '@webrtc-player/core';
+
+function VideoPlayer({ url, api }: { url: string; api: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const player = new WebRTCPlayer({
+      url,
+      api,
+      video: videoRef.current!,
+    });
+
+    player.on('state', (state) => {
+      console.log('Player state:', state);
+    });
+
+    player.on('error', (msg) => {
+      console.error('Error:', msg);
+    });
+
+    player.play();
+
+    return () => {
+      player.destroy();
+    };
+  }, [url, api]);
+
+  return <video ref={videoRef} style={{ width: '100%' }} />;
+}
+```
+
+---
+
+## License
+
+[ISC](https://github.com/null1126/webrtc-player) — Copyright (c) 2024-present WebRTC Player Contributors
