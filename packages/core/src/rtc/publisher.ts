@@ -89,6 +89,9 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
 
       this._source = source;
     } catch (err) {
+      if (err instanceof Error) {
+        this.handlePermissionError(source, err);
+      }
       this._source = prevSource;
       throw err;
     } finally {
@@ -136,29 +139,68 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
       return s.stream;
     }
 
+    try {
+      this.localStream = await this.requestMedia(s);
+    } catch (err) {
+      if (err instanceof Error) {
+        this.handlePermissionError(s, err);
+      }
+      throw err;
+    }
+
+    this.bindVideo();
+
+    return this.localStream;
+  }
+
+  /**
+   * 请求媒体设备获取 MediaStream
+   * - screen: 调用 getDisplayMedia 获取录屏流
+   * - camera: 调用 getUserMedia 获取摄像头视频流
+   * - microphone: 调用 getUserMedia 获取麦克风音频流
+   */
+  private async requestMedia(s: MediaSource): Promise<MediaStream> {
     if (s.type === 'screen') {
       const displayMediaOptions: DisplayMediaStreamOptions = {
         video: true,
         audio: s.audio ?? false,
       };
-      this.localStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
-    } else {
-      const constraints: MediaStreamConstraints = {
-        video: s.type === 'camera' ? { deviceId: s.deviceId } : false,
-        audio: { deviceId: s.deviceId },
-      };
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      return navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
     }
 
-    if (this.video) {
-      this.video.srcObject = this.localStream;
-      this.video.muted = true;
-      this.video.onloadedmetadata = () => {
-        this.video?.play();
-      };
-    }
+    const constraints: MediaStreamConstraints = {
+      video: s.type === 'camera' ? { deviceId: s.deviceId } : false,
+      audio: s.type === 'microphone' ? { deviceId: s.deviceId } : false,
+    };
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
 
-    return this.localStream;
+  /**
+   * 将 localStream 绑定到预览 video 元素
+   * 设置 muted 避免回声，自动播放
+   */
+  private bindVideo(): void {
+    if (!this.video || !this.localStream) return;
+
+    this.video.srcObject = this.localStream;
+    this.video.muted = true;
+    this.video.onloadedmetadata = () => {
+      this.video?.play();
+    };
+  }
+
+  /**
+   * 检测并发射权限拒绝事件
+   * 捕获 NotAllowedError / PermissionDeniedError / AbortError
+   */
+  private handlePermissionError(source: MediaSource, err: Error): void {
+    if (
+      err.name === 'NotAllowedError' ||
+      err.name === 'PermissionDeniedError' ||
+      err.name === 'AbortError'
+    ) {
+      this.emit('permissiondenied', { source, error: err });
+    }
   }
 
   /**

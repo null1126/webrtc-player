@@ -29,21 +29,37 @@ export type MediaSource =
   | MediaSourceScreen
   | MediaSourceCustom;
 
+/**
+ * 摄像头媒体源
+ * 使用系统摄像头作为视频输入
+ */
 export interface MediaSourceCamera {
   type: 'camera';
   deviceId?: string;
 }
 
+/**
+ * 麦克风媒体源
+ * 使用系统麦克风作为音频输入
+ */
 export interface MediaSourceMicrophone {
   type: 'microphone';
   deviceId?: string;
 }
 
+/**
+ * 录屏媒体源
+ * 使用浏览器录屏 API（getDisplayMedia）捕获屏幕内容
+ */
 export interface MediaSourceScreen {
   type: 'screen';
   audio?: boolean;
 }
 
+/**
+ * 自定义媒体源
+ * 由调用方自行传入 MediaStream，适用于已有媒体流的场景
+ */
 export interface MediaSourceCustom {
   type: 'custom';
   stream: MediaStream;
@@ -126,4 +142,6 @@ export interface RtcPublisherEvents extends RtcBaseEvents {
   sourcechange: MediaSource;
   /** 推流端收到远端流（回显/对讲） */
   track: { stream: MediaStream; event: RTCTrackEvent };
+  /** 用户拒绝媒体授权 */
+  permissiondenied: { source: MediaSource; error: Error };
 }
