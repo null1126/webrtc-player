@@ -22,8 +22,8 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents> {
         throw new Error('Peer connection not initialized');
       }
 
-      this.pc.addTransceiver('video', { direction: 'sendrecv' });
-      this.pc.addTransceiver('audio', { direction: 'sendrecv' });
+      this.pc.addTransceiver('video', { direction: 'recvonly' });
+      this.pc.addTransceiver('audio', { direction: 'recvonly' });
 
       await this.createSession();
       return true;
@@ -40,10 +40,7 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents> {
     this.emit('state', RtcState.SWITCHING);
     this.url = url;
     this.resetSession();
-    this.initPeerConnection();
-    this.pc!.addTransceiver('video', { direction: 'sendrecv' });
-    this.pc!.addTransceiver('audio', { direction: 'sendrecv' });
-    await this.createSession();
+    await this.play();
     this.emit('state', RtcState.SWITCHED);
   }
 

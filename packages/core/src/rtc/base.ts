@@ -51,14 +51,7 @@ export abstract class RtcBase<TEvents extends RtcBaseEvents = RtcBaseEvents> {
    * 创建并初始化 RTCPeerConnection
    */
   protected initPeerConnection(config?: RTCConfiguration) {
-    const defaultConfig: RTCConfiguration = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-      ],
-    };
-
-    this.pc = new RTCPeerConnection(config ?? defaultConfig);
+    this.pc = new RTCPeerConnection(config);
     this.bindPcEvents();
   }
 
