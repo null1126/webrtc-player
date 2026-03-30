@@ -63,7 +63,7 @@ features:
     details: Clean API design, install and go. Available via npm with full TypeScript definitions. Play a video stream in just a few lines of code, zero external dependencies.
   - icon: 🔌
     title: Playback & Publishing
-    details: One library for both: subscribe WebRTC streams from SRS, ZLMediaKit, monibuca and other servers; or publish local camera, microphone, or screen capture to any WebRTC-compatible server.
+    details: 'One library for both: subscribe WebRTC streams from SRS, ZLMediaKit, monibuca and other servers; or publish local camera, microphone, or screen capture to any WebRTC-compatible server.'
   - icon: 🔗
     title: Protocol Compatible
     details: Built on standard WebRTC APIs (RTCPeerConnection, getUserMedia, RTCRtpSender). Works with any WebRTC-enabled media server, no lock-in on server choice.
