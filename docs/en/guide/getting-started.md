@@ -1,16 +1,17 @@
-# Getting Started
+---
+title: WebRTC Player - Getting Started
+description: Quickly integrate WebRTC Player into your project, supporting both playback and publishing.
+---
 
-This guide will help you quickly integrate WebRTC Player into your project.
+# Getting Started
 
 ## Requirements
 
 - Modern browsers (Chrome 56+, Firefox 44+, Safari 11+, Edge 79+)
 - HTTPS support (production) or localhost (development)
-- Streaming server with WebRTC protocol support
+- Streaming server with WebRTC support (SRS, ZLMediaKit, monibuca, etc.)
 
 ## Installation
-
-Install the core package via npm or pnpm:
 
 ```bash
 pnpm add @webrtc-player/core
@@ -18,150 +19,150 @@ pnpm add @webrtc-player/core
 npm install @webrtc-player/core
 ```
 
-## Create Player
-
-### Basic Usage
+## Playback
 
 ```typescript
-import { WebRTCPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-player/core';
 
-// Get video element
-const video = document.getElementById('myVideo') as HTMLVideoElement;
-
-// Create player instance
-const player = new WebRTCPlayer({
+const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: video,
+  video: document.getElementById('video') as HTMLVideoElement,
 });
 
-// Start playback
-player.play();
-```
-
-### Manual Stream Binding
-
-If you don't want automatic video element binding, listen to the `track` event and handle it manually:
-
-```typescript
-const player = new WebRTCPlayer({
-  url: 'webrtc://localhost/live/livestream',
-  api: 'http://localhost:1985/rtc/v1/play/',
-});
-
-player.on('track', ({ stream }) => {
-  const video = document.getElementById('myVideo') as HTMLVideoElement;
-  video.srcObject = stream;
-  video.play();
-});
+player.on('state', (state) => console.log('State:', state));
+player.on('error', (error) => console.error('Error:', error));
 
 player.play();
 ```
 
-## Complete Example
-
-Here's a complete example with error handling and state monitoring:
+## Publishing
 
 ```typescript
-import { WebRTCPlayer, StateEnum } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-player/core';
 
-const video = document.getElementById('myVideo') as HTMLVideoElement;
-
-const player = new WebRTCPlayer({
-  url: 'webrtc://localhost/live/livestream',
-  api: 'http://localhost:1985/rtc/v1/play/',
-  video: video,
+const publisher = new RtcPublisher({
+  url: 'webrtc://localhost/live/pushstream',
+  api: 'http://localhost:1985/rtc/v1/publish/',
+  source: { type: 'camera', audio: true },
+  video: document.getElementById('preview') as HTMLVideoElement,
 });
 
-// Listen to connection state
-player.on('state', (state: StateEnum) => {
-  console.log('Connection state:', state);
+publisher.on('streamstart', () => console.log('Stream started'));
+publisher.on('error', (error) => console.error('Error:', error));
 
-  switch (state) {
-    case StateEnum.CONNECTING:
-      console.log('Connecting...');
-      break;
-    case StateEnum.CONNECTED:
-      console.log('Connected');
-      break;
-    case StateEnum.DISCONNECTED:
-      console.log('Disconnected');
-      break;
-    case StateEnum.FAILED:
-      console.log('Connection failed');
-      break;
-    case StateEnum.CLOSED:
-      console.log('Connection closed');
-      break;
-    case StateEnum.SWITCHING:
-      console.log('Switching stream...');
-      break;
-    case StateEnum.SWITCHED:
-      console.log('Stream switched');
-      break;
-    case StateEnum.DESTROYED:
-      console.log('Player destroyed');
-      break;
-  }
-});
-
-// Listen to errors
-player.on('error', (error: string) => {
-  console.error('Player error:', error);
-});
-
-// Listen to ICE connection state
-player.on('iceconnectionstate', (state: RTCIceConnectionState) => {
-  console.log('ICE connection state:', state);
-});
-
-// Start playback
-player.play();
-
-// When component is destroyed
-// player.destroy();
+publisher.start();
 ```
 
-## Usage in React
+## Supported Media Sources
+
+| Type       | Config                            | Description          |
+| ---------- | --------------------------------- | -------------------- |
+| Camera     | `{ type: 'camera', audio: true }` | Video + audio        |
+| Screen     | `{ type: 'screen', audio: true }` | With system audio    |
+| Microphone | `{ type: 'microphone' }`          | Audio only           |
+| Custom     | `{ type: 'custom', stream }`      | Existing MediaStream |
+
+## React Usage
 
 ```typescript
-import { useEffect, useRef } from 'react';
-import { WebRTCPlayer, StateEnum } from '@webrtc-player/core';
-
+// Playback
 function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<WebRTCPlayer | null>(null);
 
   useEffect(() => {
-    if (!videoRef.current) return;
-
-    playerRef.current = new WebRTCPlayer({
+    const player = new RtcPlayer({
       url: 'webrtc://localhost/live/livestream',
       api: 'http://localhost:1985/rtc/v1/play/',
       video: videoRef.current,
     });
-
-    playerRef.current.on('state', (state) => {
-      console.log('Connection state:', state);
-    });
-
-    playerRef.current.play();
-
-    return () => {
-      playerRef.current?.destroy();
-    };
+    player.play();
+    return () => player.destroy();
   }, []);
 
-  return (
-    <div>
-      <video ref={videoRef} controls muted />
-    </div>
-  );
+  return <video ref={videoRef} controls muted />;
 }
+
+// Publishing
+function StreamPublisher() {
+  const previewRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const publisher = new RtcPublisher({
+      url: 'webrtc://localhost/live/pushstream',
+      api: 'http://localhost:1985/rtc/v1/publish/',
+      source: { type: 'camera', audio: true },
+      video: previewRef.current,
+    });
+    publisher.start();
+    return () => publisher.destroy();
+  }, []);
+
+  return <video ref={previewRef} muted autoPlay playsInline />;
+}
+```
+
+## Vue Usage
+
+```vue
+<!-- Playback -->
+<template>
+  <video ref="videoRef" controls muted />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { RtcPlayer } from '@webrtc-player/core';
+
+const videoRef = ref<HTMLVideoElement | null>(null);
+let player: RtcPlayer | null = null;
+
+onMounted(() => {
+  player = new RtcPlayer({
+    url: 'webrtc://localhost/live/livestream',
+    api: 'http://localhost:1985/rtc/v1/play/',
+    video: videoRef.value!,
+  });
+  player.play();
+});
+
+onUnmounted(() => {
+  player?.destroy();
+});
+</script>
+```
+
+```vue
+<!-- Publishing -->
+<template>
+  <video ref="previewRef" muted autoplay playsinline />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { RtcPublisher } from '@webrtc-player/core';
+
+const previewRef = ref<HTMLVideoElement | null>(null);
+let publisher: RtcPublisher | null = null;
+
+onMounted(() => {
+  publisher = new RtcPublisher({
+    url: 'webrtc://localhost/live/pushstream',
+    api: 'http://localhost:1985/rtc/v1/publish/',
+    source: { type: 'camera', audio: true },
+    video: previewRef.value!,
+  });
+  publisher.start();
+});
+
+onUnmounted(() => {
+  publisher?.destroy();
+});
+</script>
 ```
 
 ## Next Steps
 
-- See [Events](./events) to learn more about event types
-- See [API Documentation](../api/) to learn more about configuration options
-- See [Examples](../examples/) to see complete examples
+- [Events](./events) - Learn about event types
+- [Publishing](./publisher) - Camera/screen streaming
+- [API Documentation](../api/) - Configuration options

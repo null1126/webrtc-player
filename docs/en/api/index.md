@@ -1,57 +1,31 @@
-# WebRTCPlayer
+---
+title: WebRTC Player - RtcPlayer API
+description: RtcPlayer playback player core class API documentation.
+---
 
-The core class of WebRTC Player, used for managing WebRTC connections and video playback.
+# RtcPlayer
+
+Playback player core class.
 
 ## Constructor
 
 ```typescript
-new WebRTCPlayer(options: PlayerOptions)
+new RtcPlayer(options: RtcPlayerOptions)
 ```
-
-### Parameters
-
-| Parameter | Type            | Required | Description                  |
-| --------- | --------------- | -------- | ---------------------------- |
-| options   | `PlayerOptions` | Yes      | Player configuration options |
 
 ## Methods
 
-### play()
+### play() <Badge type="tip" text="async" />
 
-Start playing WebRTC video stream.
-
-```typescript
-async play(): Promise<boolean>
-```
-
-**Returns**: Returns a Promise, resolves with `true` on success, throws on failure.
-
-**Example**:
+Start playback.
 
 ```typescript
-try {
-  await player.play();
-  console.log('Playback started');
-} catch (error) {
-  console.error('Playback failed:', error);
-}
+await player.play();
 ```
 
-### switchStream(url)
+### switchStream(url) <Badge type="tip" text="async" />
 
-Switch to a new video stream.
-
-```typescript
-async switchStream(url: string): Promise<void>
-```
-
-**Parameters**:
-
-| Parameter | Type     | Required | Description      |
-| --------- | -------- | -------- | ---------------- |
-| url       | `string` | Yes      | New playback URL |
-
-**Example**:
+Switch playback URL.
 
 ```typescript
 await player.switchStream('webrtc://localhost/live/newstream');
@@ -59,13 +33,7 @@ await player.switchStream('webrtc://localhost/live/newstream');
 
 ### destroy()
 
-Destroy the player instance and release all resources.
-
-```typescript
-destroy(): void
-```
-
-**Example**:
+Destroy instance.
 
 ```typescript
 player.destroy();
@@ -73,77 +41,24 @@ player.destroy();
 
 ## Events
 
-### on(event, listener)
+| Event   | Description            |
+| ------- | ---------------------- |
+| `track` | Remote stream received |
+| `state` | Connection state       |
+| `error` | Error                  |
 
-Listen to the specified event.
-
-```typescript
-on<T extends EventType>(event: T, listener: EventListener<T>): this
-```
-
-### off(event, listener)
-
-Remove event listener.
+## Usage Example
 
 ```typescript
-off<T extends EventType>(event: T, listener: EventListener<T>): this
-```
+import { RtcPlayer } from '@webrtc-player/core';
 
-### once(event, listener)
-
-Listen to an event only once.
-
-```typescript
-once<T extends EventType>(event: T, listener: EventListener<T>): this
-```
-
-## Example
-
-```typescript
-import { WebRTCPlayer, StateEnum } from '@webrtc-player/core';
-
-const player = new WebRTCPlayer({
+const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: document.getElementById('video') as HTMLVideoElement,
+  video: videoElement,
 });
 
-// Listen to events
-player.on('track', ({ stream }) => {
-  console.log('Stream received');
-});
-
-player.on('state', (state) => {
-  console.log('State:', state);
-});
-
-player.on('error', (error) => {
-  console.error('Error:', error);
-});
-
-// Start playback
+player.on('track', ({ stream }) => (video.srcObject = stream));
+player.on('state', (state) => console.log(state));
 player.play();
-
-// Switch stream
-player.switchStream('webrtc://localhost/live/newstream');
-
-// Destroy
-player.destroy();
-```
-
-## Type Definitions
-
-```typescript
-export type EventType = keyof PlayerEvents;
-
-export interface PlayerEvents {
-  track: { stream: MediaStream; event: RTCTrackEvent };
-  state: StateEnum;
-  error: string;
-  icecandidate: RTCIceCandidate;
-  iceconnectionstate: RTCIceConnectionState;
-  icegatheringstate: RTCIceGatheringState;
-}
-
-export type EventListener<T extends EventType> = (data: PlayerEvents[T]) => void;
 ```
