@@ -1,6 +1,6 @@
 {
   "name": "@webrtc-player/core",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "WebRTC Player core package",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",

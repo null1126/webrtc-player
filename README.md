@@ -1,200 +1,212 @@
 # WebRTC Player
 
-[English](./README.md) · [简体中文](./README_zh.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://github.com/null1126/webrtc-player)
+[English](./README_en.md) · [简体中文](./README.md) · [Demo](https://github.com/null1126/webrtc-player) · [文档](https://webrtc-player.netlify.app/)
 
-A lightweight, framework-agnostic WebRTC player library for browser-based real-time video streaming.
-
----
-
-## Features
-
-- **Framework Agnostic** — Works with any JavaScript framework or vanilla TypeScript/JavaScript
-- **TypeScript First** — Full TypeScript support with detailed type definitions included in the package
-- **Event-Driven** — Flexible event emitter API for player state management
-- **Signaling Server Integration** — Built-in HTTP signaling server communication
-- **Stream Switching** — Switch between multiple video sources without recreating the player instance
-- **Auto Video Binding** — Optionally pass a `<video>` element and the player handles everything automatically
-- **Zero External Dependencies** — No third-party dependencies; only standard Web APIs
+一款轻量级、框架无关的 WebRTC 视频库，支持浏览器端实时视频播放与推流。**一库双用**：既可拉流播放，也可推流发布。
 
 ---
 
-## Packages
+## 特性
 
-This monorepo uses [pnpm workspaces](https://pnpm.io/workspaces) and [Turborepo](https://turbo.build/).
-
-| Package                                  | Description                | Published |
-| ---------------------------------------- | -------------------------- | --------- |
-| [`@webrtc-player/core`](./packages/core) | Core WebRTC player library | npm       |
-| [`react`](./examples/react)              | React integration example  | Internal  |
+- **拉流与推流** — 一库双用：订阅 WebRTC 视频流，或发布摄像头/麦克风/屏幕录制
+- **框架无关** — 适用于 React、Vue、Angular 或原生 TypeScript/JavaScript
+- **TypeScript 优先** — 完整的 TypeScript 类型定义，开箱即用
+- **事件驱动** — 完整的事件生命周期，实时管理连接状态
+- **自定义信令** — 内置 HTTP 信令提供者；通过 `SignalingProvider` 接口可对接任意信令服务器
+- **多源采集** — 支持摄像头、麦克风、屏幕录制、自定义 MediaStream
+- **流切换** — 无需重建播放器实例即可切换视频源
+- **零外部依赖** — 无第三方运行时依赖，仅使用标准 Web API
 
 ---
 
-## Quick Start
-
-### Installation
+## 安装
 
 ```bash
 npm install @webrtc-player/core
-# or
+# 或
 pnpm add @webrtc-player/core
-# or
+# 或
 yarn add @webrtc-player/core
 ```
 
-### Basic Usage
+---
+
+## 快速开始
+
+### 拉流（播放）
 
 ```typescript
-import { WebRTCPlayer, StateEnum } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-player/core';
 
-const player = new WebRTCPlayer({
-  url: 'webrtc://localhost:8080/live/stream',
-  api: 'http://localhost:8080',
+const player = new RtcPlayer({
+  url: 'webrtc://localhost/live/livestream',
+  api: 'http://localhost:1985/rtc/v1/play/',
   video: document.getElementById('video') as HTMLVideoElement,
 });
 
 player.on('state', (state) => {
-  console.log('Connection state:', state);
-});
-
-player.on('track', ({ stream, event }) => {
-  console.log('New track received:', stream);
-});
-
-player.on('error', (message) => {
-  console.error('Player error:', message);
-});
-
-await player.play();
-```
-
-### Stream Switching
-
-```typescript
-// Switch to a different stream without recreating the player
-await player.switchStream('webrtc://localhost:8080/live/new-stream');
-```
-
-### Without Auto Video Binding
-
-```typescript
-import { WebRTCPlayer } from '@webrtc-player/core';
-
-const player = new WebRTCPlayer({
-  url: 'webrtc://localhost:8080/live/stream',
-  api: 'http://localhost:8080',
-  // omit video element — handle stream manually
+  console.log('连接状态:', state);
 });
 
 player.on('track', ({ stream }) => {
-  const video = document.createElement('video');
-  video.srcObject = stream;
-  video.autoplay = true;
-  document.body.appendChild(video);
+  console.log('收到新轨道:', stream);
+});
+
+player.on('error', (message) => {
+  console.error('播放器错误:', message);
 });
 
 await player.play();
+```
+
+### 推流（发布）
+
+```typescript
+import { RtcPublisher } from '@webrtc-player/core';
+
+const publisher = new RtcPublisher({
+  url: 'webrtc://localhost/live/pushstream',
+  api: 'http://localhost:1985/rtc/v1/publish/',
+  source: { type: 'camera', audio: true },
+  video: document.getElementById('preview') as HTMLVideoElement,
+});
+
+publisher.on('streamstart', ({ stream }) => {
+  console.log('推流开始:', stream);
+});
+
+publisher.on('error', (message) => {
+  console.error('推流器错误:', message);
+});
+
+await publisher.start();
+```
+
+### 媒体源类型
+
+| 类型     | 配置                              | 说明             |
+| -------- | --------------------------------- | ---------------- |
+| 摄像头   | `{ type: 'camera', audio: true }` | 视频 + 音频      |
+| 屏幕录制 | `{ type: 'screen', audio: true }` | 含系统音频       |
+| 麦克风   | `{ type: 'microphone' }`          | 仅音频           |
+| 自定义流 | `{ type: 'custom', stream }`      | 已有 MediaStream |
+
+### 流切换
+
+```typescript
+// 切换拉流地址
+await player.switchStream('webrtc://localhost/live/new-stream');
+
+// 切换推流源，无需重建连接
+await publisher.switchSource({ type: 'screen', audio: true });
 ```
 
 ---
 
-## API Overview
+## API 概览
 
-### `WebRTCPlayer`
+### `RtcPlayer`（拉流）
 
 ```typescript
-new WebRTCPlayer(options: PlayerOptions)
+new RtcPlayer(options: RtcPlayerOptions)
 ```
 
-#### PlayerOptions
+#### RtcPlayerOptions
 
-| Property | Type               | Required | Description                     |
-| -------- | ------------------ | -------- | ------------------------------- |
-| `url`    | `string`           | Yes      | WebRTC stream URL               |
-| `api`    | `string`           | Yes      | Signaling server HTTP/HTTPS URL |
-| `video`  | `HTMLVideoElement` | No       | Video element for auto-binding  |
+| 属性        | 类型                | 必填 | 说明                                    |
+| ----------- | ------------------- | ---- | --------------------------------------- |
+| `url`       | `string`            | 是   | WebRTC 流地址                           |
+| `api`       | `string`            | 是   | 信令服务器 HTTP/HTTPS 地址              |
+| `video`     | `HTMLVideoElement`  | 否   | 视频元素，自动绑定远端流                |
+| `media`     | `MediaKind`         | 否   | 媒体类型：`'audio'`、`'video'`、`'all'` |
+| `signaling` | `SignalingProvider` | 否   | 自定义信令提供者（优先于 `api`）        |
+| `config`    | `RTCConfiguration`  | 否   | 自定义 RTCConfiguration                 |
 
-#### Methods
+#### RtcPlayer 方法
 
-| Method                      | Returns            | Description                              |
-| --------------------------- | ------------------ | ---------------------------------------- |
-| `play()`                    | `Promise<boolean>` | Start the WebRTC connection              |
-| `switchStream(url: string)` | `Promise<void>`    | Switch to a different stream             |
-| `destroy()`                 | `void`             | Destroy the player and release resources |
+| 方法                | 返回值             | 说明             |
+| ------------------- | ------------------ | ---------------- |
+| `play()`            | `Promise<boolean>` | 开始 WebRTC 连接 |
+| `switchStream(url)` | `Promise<void>`    | 切换到新的流地址 |
+| `destroy()`         | `void`             | 销毁播放器       |
 
-#### Events
+#### RtcPlayer 事件
 
-| Event                | Payload                                         | Description                  |
-| -------------------- | ----------------------------------------------- | ---------------------------- |
-| `state`              | `StateEnum`                                     | Connection state changes     |
-| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }` | New media track received     |
-| `icecandidate`       | `RTCIceCandidate`                               | ICE candidate gathered       |
-| `iceconnectionstate` | `string`                                        | ICE connection state changed |
-| `icegatheringstate`  | `string`                                        | ICE gathering state changed  |
-| `error`              | `string`                                        | Player error occurred        |
+| 事件                 | 载荷                                            | 说明             |
+| -------------------- | ----------------------------------------------- | ---------------- |
+| `state`              | `RtcState`                                      | 连接状态变更     |
+| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }` | 收到新的媒体轨道 |
+| `icecandidate`       | `RTCIceCandidate`                               | ICE 候选者已收集 |
+| `iceconnectionstate` | `RTCIceConnectionState`                         | ICE 连接状态变更 |
+| `icegatheringstate`  | `RTCIceGatheringState`                          | ICE 收集状态变更 |
+| `error`              | `string`                                        | 播放器发生错误   |
 
-#### StateEnum
+---
+
+### `RtcPublisher`（推流）
 
 ```typescript
-enum StateEnum {
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-  DISCONNECTED = 'disconnected',
-  FAILED = 'failed',
-  CLOSED = 'closed',
-  SWITCHING = 'switching',
-  SWITCHED = 'switched',
-  DESTROYED = 'destroyed',
+new RtcPublisher(options: RtcPublisherOptions)
+```
+
+#### RtcPublisherOptions
+
+| 属性        | 类型                | 必填 | 说明                       |
+| ----------- | ------------------- | ---- | -------------------------- |
+| `url`       | `string`            | 是   | WebRTC 流地址              |
+| `api`       | `string`            | 是   | 信令服务器 HTTP/HTTPS 地址 |
+| `source`    | `MediaSource`       | 是   | 媒体源配置                 |
+| `video`     | `HTMLVideoElement`  | 否   | 预览视频元素               |
+| `signaling` | `SignalingProvider` | 否   | 自定义信令提供者           |
+| `config`    | `RTCConfiguration`  | 否   | 自定义 RTCConfiguration    |
+
+#### RtcPublisher 方法
+
+| 方法                   | 返回值          | 说明       |
+| ---------------------- | --------------- | ---------- |
+| `start()`              | `Promise<void>` | 开始推流   |
+| `switchSource(source)` | `Promise<void>` | 切换媒体源 |
+| `stop()`               | `void`          | 停止推流   |
+| `destroy()`            | `void`          | 销毁推流器 |
+
+#### RtcPublisher 事件
+
+| 事件               | 载荷                                            | 说明                 |
+| ------------------ | ----------------------------------------------- | -------------------- |
+| `streamstart`      | `{ stream: MediaStream }`                       | 推流开始             |
+| `streamstop`       | `void`                                          | 推流停止             |
+| `sourcechange`     | `MediaSource`                                   | 媒体源已切换         |
+| `track`            | `{ stream: MediaStream; event: RTCTrackEvent }` | 收到远端轨道（回显） |
+| `permissiondenied` | `{ source: MediaSource; error: Error }`         | 媒体权限被拒绝       |
+| `state`            | `RtcState`                                      | 连接状态变更         |
+| `error`            | `string`                                        | 推流器发生错误       |
+
+---
+
+### `RtcState` 枚举
+
+```typescript
+enum RtcState {
+  CONNECTING = 'connecting', // 连接中
+  CONNECTED = 'connected', // 已连接
+  DISCONNECTED = 'disconnected', // 已断开
+  FAILED = 'failed', // 连接失败
+  CLOSED = 'closed', // 连接关闭
+  SWITCHING = 'switching', // 切换中
+  SWITCHED = 'switched', // 切换成功
+  DESTROYED = 'destroyed', // 已销毁
 }
 ```
 
 ---
 
-## Development
+## 相关项目
 
-### Prerequisites
-
-- Node.js >= 18
-- pnpm >= 9
-
-### Setup
-
-```bash
-# Install dependencies
-pnpm install
-
-# Build core package
-pnpm build
-
-# Start all workspaces (core dev + examples)
-pnpm dev
-
-# Run linting
-pnpm lint
-
-# Auto-fix lint issues
-pnpm lint:fix
-
-# Type checking
-pnpm typecheck
-```
-
-### Documentation
-
-The documentation site is built with [VitePress](https://vitepress.dev):
-
-```bash
-# Start docs dev server (English)
-pnpm docs:dev
-
-# Build docs for production
-pnpm docs:build
-
-# Preview built docs
-pnpm docs:preview
-```
+- [webrtc-player](https://github.com/null1126/webrtc-player) — 主项目仓库
+- [webrtc-player 文档](https://webrtc-player.netlify.app/) — 完整文档站点
 
 ---
 
-## License
+## 许可证
 
 [ISC](./LICENSE) — Copyright (c) 2024-present WebRTC Player Contributors

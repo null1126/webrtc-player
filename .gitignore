@@ -54,4 +54,5 @@ docs/*/cache
 # core
 packages/*/README.md
 packages/*/README_zh.md
+packages/*/README_en.md
 packages/*/LICENSE
