@@ -1,15 +1,17 @@
 import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
-import type { RtcPlayerEvents, RtcPlayerOptions } from './types';
+import type { MediaKind, RtcPlayerEvents, RtcPlayerOptions } from './types';
 import { RtcState } from './types';
 
 export class RtcPlayer extends RtcBase<RtcPlayerEvents> {
   private video?: HTMLVideoElement;
+  private mediaKind: MediaKind;
 
   constructor(options: RtcPlayerOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
     super(options, signaling);
     this.video = options.video;
+    this.mediaKind = options.media ?? 'all';
   }
 
   /**
@@ -22,8 +24,12 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents> {
         throw new Error('Peer connection not initialized');
       }
 
-      this.pc.addTransceiver('video', { direction: 'recvonly' });
-      this.pc.addTransceiver('audio', { direction: 'recvonly' });
+      if (this.mediaKind === 'all' || this.mediaKind === 'video') {
+        this.pc.addTransceiver('video', { direction: 'recvonly' });
+      }
+      if (this.mediaKind === 'all' || this.mediaKind === 'audio') {
+        this.pc.addTransceiver('audio', { direction: 'recvonly' });
+      }
 
       await this.createSession();
       return true;

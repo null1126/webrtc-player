@@ -25,6 +25,7 @@ export function StreamPublisher({
 
   const [state, setState] = useState<RtcState>(RtcState.CLOSED);
   const [sourceType, setSourceType] = useState<PublisherSourceType>('camera');
+  const [withAudio, setWithAudio] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [permissionDenied, setPermissionDenied] = useState<{
     source: string;
@@ -65,7 +66,9 @@ export function StreamPublisher({
     setPermissionDenied(null);
 
     const source: MediaSource =
-      sourceType === 'screen' ? { type: 'screen', audio: false } : { type: 'camera' };
+      sourceType === 'screen'
+        ? { type: 'screen', audio: withAudio }
+        : { type: 'camera', audio: withAudio };
 
     const pub = new RtcPublisher({
       url: streamUrl,
@@ -99,7 +102,9 @@ export function StreamPublisher({
     const newType: PublisherSourceType = sourceType === 'camera' ? 'screen' : 'camera';
     setSourceType(newType);
     const source: MediaSource =
-      newType === 'screen' ? { type: 'screen', audio: false } : { type: 'camera' };
+      newType === 'screen'
+        ? { type: 'screen', audio: withAudio }
+        : { type: 'camera', audio: withAudio };
     publisherRef.current.switchSource(source);
     appendLog('info', `[操作] 切换至 ${newType === 'camera' ? '摄像头' : '屏幕录制'}`);
   }
@@ -169,6 +174,20 @@ export function StreamPublisher({
               />
             ))}
           </div>
+        </div>
+
+        {/* 音频采集 */}
+        <div className="field">
+          <FieldLabel>音频采集 / Audio</FieldLabel>
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={withAudio}
+              onChange={(e) => setWithAudio(e.target.checked)}
+              disabled={active}
+            />
+            <span>包含麦克风音频</span>
+          </label>
         </div>
 
         {/* 视频预览 */}

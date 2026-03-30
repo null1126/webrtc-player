@@ -1,6 +1,11 @@
 import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
-import type { MediaSource, RtcPublisherEvents, RtcPublisherOptions } from './types';
+import type {
+  MediaSource,
+  MediaSourceMicrophone,
+  RtcPublisherEvents,
+  RtcPublisherOptions,
+} from './types';
 import { RtcState } from './types';
 
 /**
@@ -102,6 +107,9 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
     this.emit('sourcechange', source);
   }
 
+  /**
+   * 创建会话
+   */
   protected async createSession(): Promise<void> {
     if (!this.pc) throw new Error('Peer connection not initialized');
 
@@ -115,6 +123,9 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
     });
   }
 
+  /**
+   * 重置会话
+   */
   protected resetSession(): void {
     if (this.pc) {
       this.pc.close();
@@ -123,6 +134,9 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
     this.activeTransceivers = [];
   }
 
+  /**
+   * 处理轨道事件
+   */
   protected onTrack(event: RTCTrackEvent): void {
     const stream = event.streams[0];
     this.emit('track', { stream, event });
@@ -156,7 +170,7 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
   /**
    * 请求媒体设备获取 MediaStream
    * - screen: 调用 getDisplayMedia 获取录屏流
-   * - camera: 调用 getUserMedia 获取摄像头视频流
+   * - camera: 调用 getUserMedia 获取摄像头视频流（audio 为 true 时同时获取麦克风）
    * - microphone: 调用 getUserMedia 获取麦克风音频流
    */
   private async requestMedia(s: MediaSource): Promise<MediaStream> {
@@ -168,9 +182,18 @@ export class RtcPublisher extends RtcBase<RtcPublisherEvents> {
       return navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
     }
 
+    if (s.type === 'camera') {
+      const constraints: MediaStreamConstraints = {
+        video: { deviceId: s.deviceId },
+        audio: s.audio ? { deviceId: s.deviceId } : false,
+      };
+      return navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    const sm = s as MediaSourceMicrophone;
     const constraints: MediaStreamConstraints = {
-      video: s.type === 'camera' ? { deviceId: s.deviceId } : false,
-      audio: s.type === 'microphone' ? { deviceId: s.deviceId } : false,
+      video: false,
+      audio: sm.deviceId ? { deviceId: sm.deviceId } : true,
     };
     return navigator.mediaDevices.getUserMedia(constraints);
   }

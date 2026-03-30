@@ -31,11 +31,12 @@ export type MediaSource =
 
 /**
  * 摄像头媒体源
- * 使用系统摄像头作为视频输入
+ * 使用系统摄像头作为视频输入，audio 为 true 时同时获取麦克风音频
  */
 export interface MediaSourceCamera {
   type: 'camera';
   deviceId?: string;
+  audio?: boolean;
 }
 
 /**
@@ -80,11 +81,21 @@ export interface RtcBaseOptions {
 }
 
 /**
+ * 媒体类型配置
+ * - 'audio': 仅音频
+ * - 'video': 仅视频
+ * - 'all': 音频和视频（默认）
+ */
+export type MediaKind = 'audio' | 'video' | 'all';
+
+/**
  * 拉流选项
  */
 export interface RtcPlayerOptions extends RtcBaseOptions {
   /** 视频元素（可选，自动绑定远端流） */
   video?: HTMLVideoElement;
+  /** 媒体类型配置（默认: 'all'） */
+  media?: MediaKind;
 }
 
 /**
