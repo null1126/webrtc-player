@@ -1,6 +1,6 @@
 # WebRTC Player
 
-[English](./README_en.md) · [简体中文](./README.md) · [Demo](https://github.com/null1126/webrtc-player) · [文档](https://webrtc-player.netlify.app/)
+[English](./README_en.md) · [简体中文](./README.md) · [Demo](https://github.com/null1126/webrtc-player) · [文档](https://null1126.github.io/webrtc-player/zh/)
 
 一款轻量级、框架无关的 WebRTC 视频库，支持浏览器端实时视频播放与推流。**一库双用**：既可拉流播放，也可推流发布。
 

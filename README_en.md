@@ -1,6 +1,6 @@
 # WebRTC Player
 
-[简体中文](./README.md) · [English](./README_zh.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://webrtc-player.netlify.app/)
+[简体中文](./README.md) · [English](./README_zh.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://null1126.github.io/webrtc-player/zh/)
 
 A lightweight, framework-agnostic WebRTC library for browser-based real-time video streaming. Supports both **playback** (subscribe) and **publishing** (push).
 
