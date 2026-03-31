@@ -1,3 +1,5 @@
+import type { RtcPlayerPlugin, RtcPublisherPlugin } from '../plugins/types';
+
 /**
  * 信令提供者接口
  * 用户可自定义实现，支持 HTTP / WebSocket / GRPC 等任何信令协议
@@ -96,6 +98,8 @@ export interface RtcPlayerOptions extends RtcBaseOptions {
   video?: HTMLVideoElement;
   /** 媒体类型配置（默认: 'all'） */
   media?: MediaKind;
+  /** 插件列表 */
+  plugins?: RtcPlayerPlugin[];
 }
 
 /**
@@ -106,6 +110,8 @@ export interface RtcPublisherOptions extends RtcBaseOptions {
   source: MediaSource;
   /** 预览视频元素（可选） */
   video?: HTMLVideoElement;
+  /** 插件列表 */
+  plugins?: RtcPublisherPlugin[];
 }
 
 /**
