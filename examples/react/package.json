@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@webrtc-player/core": "workspace:*",
+    "@webrtc-player/plugin-performance": "workspace:*",
+    "@webrtc-player/plugin-logger": "workspace:*",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "@webrtc-player/core": "workspace:*"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

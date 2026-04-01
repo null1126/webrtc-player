@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react';
 import { RtcPlayer, RtcState } from '@webrtc-player/core';
+import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import type { PerformanceData } from '@webrtc-player/plugin-performance';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
 import { LogPanel, useLogs } from '../LogPanel';
@@ -22,64 +25,57 @@ export function StreamPlayer({
   const playerRef = useRef<RtcPlayer | null>(null);
 
   const [state, setState] = useState<RtcState>(RtcState.CLOSED);
+  const [perfData, setPerfData] = useState<PerformanceData | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const { logs, appendLog } = useLogs();
 
   async function handleStart() {
     if (playerRef.current) return;
 
+    const loggerPlugin = createPlayerLoggerPlugin({}, (entry) => {
+      if (entry.level === 'info' || entry.level === 'error') {
+        appendLog(entry.level, entry.message);
+      }
+    });
+
+    const performancePlugin = createPerformancePlugin({ interval: 1000 }, (data) => {
+      setPerfData(data);
+    });
+
     const player = new RtcPlayer({
       url: streamUrl,
       api: apiUrl,
       video: videoRef.current ?? undefined,
+      plugins: [performancePlugin, loggerPlugin],
     });
 
     playerRef.current = player;
 
-    player.on('state', (s) => {
-      setState(s);
-      appendLog('info', `[状态] ${s}`);
-    });
+    player.on('state', (s) => setState(s));
 
-    player.on('error', (err) => {
-      appendLog('error', `[错误] ${err}`);
-    });
-
-    player.on('track', ({ stream }) => {
-      setRemoteStream(stream);
-      appendLog(
-        'info',
-        `[事件] track — 收到远端流 (${stream.getVideoTracks().length}v / ${stream.getAudioTracks().length}a)`
-      );
-    });
-
-    player.on('icecandidate', (candidate) => {
-      appendLog('info', `[ICE] ${candidate.candidate.slice(0, 60)}…`);
-    });
+    player.on('track', ({ stream }) => setRemoteStream(stream));
 
     try {
       await player.play();
     } catch (err) {
-      appendLog('error', `[启动失败] ${err instanceof Error ? err.message : err}`);
+      console.error(err);
     }
   }
 
   function handleStop() {
     playerRef.current?.destroy();
     playerRef.current = null;
-    setRemoteStream(null);
+    setPerfData(null);
     setState(RtcState.DESTROYED);
-    appendLog('info', '[操作] 停止拉流');
   }
 
   async function handleSwitch(newUrl: string) {
     if (!playerRef.current) return;
     onStreamUrlChange(newUrl);
-    appendLog('info', `[操作] 切换至 ${newUrl}`);
     try {
       await playerRef.current.switchStream(newUrl);
     } catch (err) {
-      appendLog('error', `[切换失败] ${err instanceof Error ? err.message : err}`);
+      console.error(err);
     }
   }
 
@@ -171,7 +167,54 @@ export function StreamPlayer({
               </span>
             )}
           </div>
-          <StreamVideo stream={remoteStream} label="拉流画面" muted />
+          <StreamVideo ref={videoRef} label="拉流画面" muted />
+          {perfData && (
+            <div className="perf-panel">
+              <div className="perf-panel-title">性能监控</div>
+              {perfData.fps && (
+                <div className="perf-row">
+                  <span className="perf-label">FPS</span>
+                  <span className="perf-value">{perfData.fps.fps}</span>
+                </div>
+              )}
+              {perfData.network && (
+                <>
+                  <div className="perf-row">
+                    <span className="perf-label">接收码率</span>
+                    <span className="perf-value">
+                      {perfData.network.bitrateReceived > 0
+                        ? `${(perfData.network.bitrateReceived / 1000).toFixed(0)} kbps`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="perf-row">
+                    <span className="perf-label">RTT</span>
+                    <span className="perf-value">
+                      {perfData.network.rtt != null ? `${perfData.network.rtt} ms` : '—'}
+                    </span>
+                  </div>
+                  <div className="perf-row">
+                    <span className="perf-label">抖动</span>
+                    <span className="perf-value">
+                      {perfData.network.jitter != null
+                        ? `${perfData.network.jitter.toFixed(1)} ms`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="perf-row">
+                    <span className="perf-label">收包丢包</span>
+                    <span className="perf-value">
+                      {(perfData.network.packetsReceivedLostRate * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="perf-row">
+                    <span className="perf-label">ICE 状态</span>
+                    <span className="perf-value">{perfData.network.connectionState}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 操作按钮 */}

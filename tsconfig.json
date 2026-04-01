@@ -36,7 +36,11 @@
     "paths": {
       "@webrtc-player/*": ["packages/*/src"],
       "@webrtc-player/core": ["packages/core/src"],
-      "@webrtc-player/core/*": ["packages/core/src/*"]
+      "@webrtc-player/core/*": ["packages/core/src/*"],
+      "@webrtc-player/plugin-performance": ["packages/plugins/plugin-performance/src"],
+      "@webrtc-player/plugin-performance/*": ["packages/plugins/plugin-performance/src/*"],
+      "@webrtc-player/plugins": ["packages/plugins/src"],
+      "@webrtc-player/plugins/*": ["packages/plugins/src/*"]
     }
   },
   "include": ["packages/*/src", "examples/*/src"],

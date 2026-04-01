@@ -15,6 +15,7 @@
 - **自定义信令** — 内置 HTTP 信令提供者；通过 `SignalingProvider` 接口可对接任意信令服务器
 - **多源采集** — 支持摄像头、麦克风、屏幕录制、自定义 MediaStream
 - **流切换** — 无需重建播放器实例即可切换视频源
+- **插件系统** — 通过插件机制扩展播放器，支持日志记录、性能监控等开箱即用功能
 - **零外部依赖** — 无第三方运行时依赖，仅使用标准 Web API
 
 ---
@@ -124,11 +125,13 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayer 方法
 
-| 方法                | 返回值             | 说明             |
-| ------------------- | ------------------ | ---------------- |
-| `play()`            | `Promise<boolean>` | 开始 WebRTC 连接 |
-| `switchStream(url)` | `Promise<void>`    | 切换到新的流地址 |
-| `destroy()`         | `void`             | 销毁播放器       |
+| 方法                | 返回值             | 说明                         |
+| ------------------- | ------------------ | ---------------------------- |
+| `play()`            | `Promise<boolean>` | 开始 WebRTC 连接             |
+| `switchStream(url)` | `Promise<void>`    | 切换到新的流地址             |
+| `use(plugin)`       | `this`             | 注册并安装插件，支持链式调用 |
+| `unuse(name)`       | `this`             | 卸载指定名称的插件           |
+| `destroy()`         | `void`             | 销毁播放器                   |
 
 #### RtcPlayer 事件
 
@@ -204,6 +207,43 @@ enum RtcState {
 
 - [webrtc-player](https://github.com/null1126/webrtc-player) — 主项目仓库
 - [webrtc-player 文档](https://webrtc-player.netlify.app/) — 完整文档站点
+
+---
+
+## 插件包
+
+官方维护的插件包，可按需安装：
+
+```bash
+npm install @webrtc-player/plugin-logger @webrtc-player/plugin-performance
+```
+
+### `@webrtc-player/plugin-logger`
+
+日志插件，记录播放器/推流器生命周期事件（连接状态、ICE 状态、轨道事件、错误等）。
+
+```typescript
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+
+player.use(createPlayerLoggerPlugin());
+```
+
+### `@webrtc-player/plugin-performance`
+
+性能监控插件，实时上报 FPS、网络码率、RTT、丢包率等指标。
+
+```typescript
+import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+
+const perf = createPerformancePlugin({
+  onStats: (stats) =>
+    console.log('FPS:', stats.fps, '码率:', (stats.bitrate / 1000).toFixed(1), 'kb/s'),
+});
+
+player.use(perf);
+```
+
+详细用法请参考[插件系统文档](https://null1126.github.io/webrtc-player/zh/guide/plugins/)。
 
 ---
 

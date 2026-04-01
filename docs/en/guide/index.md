@@ -15,6 +15,7 @@ WebRTC Player is a lightweight WebRTC video player library supporting both **pla
 - **Multi-Source** - Camera, microphone, screen recording
 - **High Performance** - No dependencies, small bundle
 - **Cross-Platform** - Chrome, Firefox, Safari, Edge
+- **Plugin System** - Rich extensibility via plugins; logging, performance monitoring, and more available out of the box
 
 ## Installation
 

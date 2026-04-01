@@ -15,6 +15,7 @@ A lightweight, framework-agnostic WebRTC library for browser-based real-time vid
 - **Custom Signaling** — Built-in HTTP signaling provider; implement your own via `SignalingProvider` interface
 - **Multi-Source Capture** — Camera, microphone, screen capture, or custom MediaStream
 - **Stream Switching** — Switch video sources without recreating the player instance
+- **Plugin System** — Extensible via plugins; logging, performance monitoring, and more available out of the box
 - **Zero External Dependencies** — No third-party runtime dependencies; only standard Web APIs
 
 ---
@@ -124,11 +125,13 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayer Methods
 
-| Method              | Returns            | Description                  |
-| ------------------- | ------------------ | ---------------------------- |
-| `play()`            | `Promise<boolean>` | Start the WebRTC connection  |
-| `switchStream(url)` | `Promise<void>`    | Switch to a different stream |
-| `destroy()`         | `void`             | Destroy the player           |
+| Method              | Returns            | Description                               |
+| ------------------- | ------------------ | ----------------------------------------- |
+| `play()`            | `Promise<boolean>` | Start the WebRTC connection               |
+| `switchStream(url)` | `Promise<void>`    | Switch to a different stream              |
+| `use(plugin)`       | `this`             | Register and install a plugin (chainable) |
+| `unuse(name)`       | `this`             | Uninstall a plugin by name                |
+| `destroy()`         | `void`             | Destroy the player                        |
 
 #### RtcPlayer Events
 
@@ -204,6 +207,43 @@ enum RtcState {
 
 - [webrtc-player](https://github.com/null1126/webrtc-player) — Main repository
 - [webrtc-player Documentation](https://webrtc-player.netlify.app/) — Full documentation site
+
+---
+
+## Plugin Packages
+
+Officially maintained plugins, install as needed:
+
+```bash
+npm install @webrtc-player/plugin-logger @webrtc-player/plugin-performance
+```
+
+### `@webrtc-player/plugin-logger`
+
+Logging plugin that records player/publisher lifecycle events (connection state, ICE state, track events, errors, etc.).
+
+```typescript
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+
+player.use(createPlayerLoggerPlugin());
+```
+
+### `@webrtc-player/plugin-performance`
+
+Performance monitoring plugin reporting real-time FPS, bitrate, RTT, packet loss, and more.
+
+```typescript
+import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+
+const perf = createPerformancePlugin({
+  onStats: (stats) =>
+    console.log('FPS:', stats.fps, 'Bitrate:', (stats.bitrate / 1000).toFixed(1), 'kb/s'),
+});
+
+player.use(perf);
+```
+
+See the [Plugin System documentation](https://null1126.github.io/webrtc-player/en/guide/plugins/) for full usage.
 
 ---
 

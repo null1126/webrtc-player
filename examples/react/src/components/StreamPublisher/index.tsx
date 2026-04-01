@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { RtcPublisher, RtcState, type MediaSource } from '@webrtc-player/core';
+import { createPublisherLoggerPlugin } from '@webrtc-player/plugin-logger';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
 import { LogPanel, useLogs } from '../LogPanel';
@@ -34,29 +35,14 @@ export function StreamPublisher({
   const { logs, appendLog } = useLogs();
 
   function setupPublisher(pub: RtcPublisher) {
-    pub.on('state', (s) => {
-      setState(s);
-      appendLog('info', `[状态] ${s}`);
-    });
+    pub.on('state', (s) => setState(s));
 
-    pub.on('error', (err) => {
-      appendLog('error', `[错误] ${err}`);
-    });
-
-    pub.on('streamstart', ({ stream }) => {
-      setLocalStream(stream);
-      appendLog('info', '[事件] streamstart — 推流已启动');
-    });
-
-    pub.on('sourcechange', (src) => {
-      appendLog('info', `[事件] sourcechange — 切换输入源: ${src.type}`);
-    });
+    pub.on('streamstart', ({ stream }) => setLocalStream(stream));
 
     pub.on('permissiondenied', ({ source, error }) => {
       const sourceName =
         source.type === 'screen' ? '屏幕录制' : source.type === 'camera' ? '摄像头' : '麦克风';
       setPermissionDenied({ source: sourceName, error: error.message });
-      appendLog('error', `[授权拒绝] ${sourceName}: ${error.message}`);
     });
   }
 
@@ -70,11 +56,18 @@ export function StreamPublisher({
         ? { type: 'screen', audio: withAudio }
         : { type: 'camera', audio: withAudio };
 
+    const loggerPlugin = createPublisherLoggerPlugin({}, (entry) => {
+      if (entry.level === 'info' || entry.level === 'error') {
+        appendLog(entry.level, entry.message);
+      }
+    });
+
     const pub = new RtcPublisher({
       url: streamUrl,
       api: apiUrl,
       source,
       video: videoRef.current ?? undefined,
+      plugins: [loggerPlugin],
     });
 
     publisherRef.current = pub;
@@ -83,17 +76,16 @@ export function StreamPublisher({
     try {
       await pub.start();
     } catch (err) {
-      appendLog('error', `[启动失败] ${err instanceof Error ? err.message : err}`);
+      console.error(err);
     }
   }
 
   function handleStop() {
     publisherRef.current?.destroy();
     publisherRef.current = null;
-    setLocalStream(null);
     setPermissionDenied(null);
+    setLocalStream(null);
     setState(RtcState.DESTROYED);
-    appendLog('info', '[操作] 停止推流');
   }
 
   function handleSwitchSource() {
@@ -106,7 +98,6 @@ export function StreamPublisher({
         ? { type: 'screen', audio: withAudio }
         : { type: 'camera', audio: withAudio };
     publisherRef.current.switchSource(source);
-    appendLog('info', `[操作] 切换至 ${newType === 'camera' ? '摄像头' : '屏幕录制'}`);
   }
 
   const active = !!publisherRef.current;
@@ -201,7 +192,7 @@ export function StreamPublisher({
               </span>
             )}
           </div>
-          <StreamVideo stream={localStream} label="本地预览" muted />
+          <StreamVideo ref={videoRef} label="本地预览" muted />
           {permissionDenied && (
             <div className="permission-alert">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

@@ -31,6 +31,26 @@ await player.play();
 await player.switchStream('webrtc://localhost/live/newstream');
 ```
 
+### use(plugin) <Badge type="tip" text="同步" />
+
+注册并安装插件，返回实例自身，支持链式调用。
+
+```typescript
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+
+player.use(createPlayerLoggerPlugin());
+```
+
+详细用法请参考[插件系统](../guide/plugins)。
+
+### unuse(name) <Badge type="tip" text="同步" />
+
+卸载指定名称的插件。
+
+```typescript
+player.unuse('player-logger');
+```
+
 ### destroy()
 
 销毁实例。

@@ -31,6 +31,26 @@ Switch playback URL.
 await player.switchStream('webrtc://localhost/live/newstream');
 ```
 
+### use(plugin) <Badge type="tip" text="sync" />
+
+Register and install a plugin. Returns `this` for chaining.
+
+```typescript
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+
+player.use(createPlayerLoggerPlugin());
+```
+
+See [Plugin System](../guide/plugins) for details.
+
+### unuse(name) <Badge type="tip" text="sync" />
+
+Uninstall a plugin by name.
+
+```typescript
+player.unuse('player-logger');
+```
+
 ### destroy()
 
 Destroy instance.

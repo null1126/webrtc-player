@@ -11,12 +11,23 @@ export default defineConfig({
   //   - 组织仓库: /your-org/webrtc-player/
   base: '/webrtc-player/',
 
+  // 默认暗黑主题
+  appearance: 'dark',
+
   // 多语言支持
   locales: {
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
       link: '/zh/',
+      themeConfig: {
+        nav: [
+          { text: '指南', link: '/zh/guide/' },
+          { text: '插件', link: '/zh/guide/plugins' },
+          { text: 'API', link: '/zh/api/' },
+          { text: '示例', link: '/zh/examples/' },
+        ],
+      },
       head: [
         [
           'script',
@@ -113,6 +124,14 @@ export default defineConfig({
       label: 'English',
       lang: 'en-US',
       link: '/en/',
+      themeConfig: {
+        nav: [
+          { text: 'Guide', link: '/en/guide/' },
+          { text: 'Plugins', link: '/en/guide/plugins' },
+          { text: 'API', link: '/en/api/' },
+          { text: 'Examples', link: '/en/examples/' },
+        ],
+      },
       head: [
         [
           'script',
@@ -207,34 +226,20 @@ export default defineConfig({
     },
   },
 
-  // 主题配置
+  // 全局主题配置（侧边栏和 footer 跨语言共享，通过路径自动匹配）
   themeConfig: {
-    // logo
     logo: '/logo.svg',
-
-    // 社交链接
     socialLinks: [{ icon: 'github', link: 'https://github.com/null1126/webrtc-player' }],
-
-    // 搜索配置
     search: {
       provider: 'local',
       options: {
         detailedView: true,
       },
     },
-
-    // 文档底部
     docFooter: {
       prev: '上一页',
       next: '下一页',
     },
-
-    // 导航栏
-    nav: [
-      { text: '指南', link: '/zh/guide/', activeMatch: '/zh/guide/' },
-      { text: 'API', link: '/zh/api/', activeMatch: '/zh/api/' },
-      { text: '示例', link: '/zh/examples/', activeMatch: '/zh/examples/' },
-    ],
 
     // 侧边栏
     sidebar: {
@@ -247,6 +252,7 @@ export default defineConfig({
             { text: '事件监听', link: '/zh/guide/events' },
             { text: '推流指南', link: '/zh/guide/publisher' },
             { text: '自定义信令', link: '/zh/guide/custom-signaling' },
+            { text: '插件系统', link: '/zh/guide/plugins' },
           ],
         },
       ],
@@ -259,6 +265,7 @@ export default defineConfig({
             { text: 'RtcPlayerOptions', link: '/zh/api/options' },
             { text: 'PublisherOptions', link: '/zh/api/publisher-options' },
             { text: 'RtcState', link: '/zh/api/state' },
+            { text: '插件 API', link: '/zh/api/plugins' },
           ],
         },
       ],
@@ -281,6 +288,7 @@ export default defineConfig({
             { text: 'Events', link: '/en/guide/events' },
             { text: 'Publishing', link: '/en/guide/publisher' },
             { text: 'Custom Signaling', link: '/en/guide/custom-signaling' },
+            { text: 'Plugin System', link: '/en/guide/plugins' },
           ],
         },
       ],
@@ -293,6 +301,7 @@ export default defineConfig({
             { text: 'RtcPlayerOptions', link: '/en/api/options' },
             { text: 'PublisherOptions', link: '/en/api/publisher-options' },
             { text: 'RtcState', link: '/en/api/state' },
+            { text: 'Plugin API', link: '/en/api/plugins' },
           ],
         },
       ],

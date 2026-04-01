@@ -51,6 +51,9 @@ hero:
       text: Get Started →
       link: /en/guide/getting-started
     - theme: alt
+      text: Plugin System →
+      link: /en/guide/plugins
+    - theme: alt
       text: View API
       link: /en/api/
   image:
@@ -70,9 +73,6 @@ features:
   - icon: 🛠
     title: Custom Signaling
     details: Implement the SignalingProvider interface to connect to any signaling server — HTTP, WebSocket, or your own protocol. Built-in HttpSignalingProvider works with SRS out of the box, or swap in your own in a few lines.
-  - icon: 🎯
-    title: Event-Driven
-    details: Complete event lifecycle covering connection state (connecting/connected/disconnected/failed), media permissions (camera/microphone granted/denied), ICE candidate exchange and more.
   - icon: 📹
     title: Multi-Source Capture
     details: Supports camera (getUserMedia), microphone, and screen capture (getDisplayMedia). Switch input devices mid-stream without rebuilding the peer connection.
@@ -82,13 +82,7 @@ features:
   - icon: 🌐
     title: Cross-Browser & Framework-Agnostic
     details: Built on standard WebRTC APIs, supporting Chrome, Firefox, Safari, and Edge. Works in React, Vue, Angular, or plain JavaScript without any framework adapter.
-  - icon: 🔄
-    title: Stream Switching
-    details: Dynamically switch video sources (camera, microphone, or screen capture) without destroying the player instance — ideal for real-time collaboration and monitoring apps.
-  - icon: 📦
-    title: Open Source & npm
-    details: Free and open source (MIT License), published on npm. Install via pnpm / npm / yarn. Source on GitHub — stars and contributions welcome.
-  - icon: 🧩
+  - icon: 🏗️
     title: Use Cases
     details: Suitable for live commerce, online education, telemedicine, video conferencing, security surveillance, real-time game streaming, and any low-latency real-time video application.
 ---
