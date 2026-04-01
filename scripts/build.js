@@ -1,8 +1,47 @@
 import { select, intro, outro, isCancel, cancel } from '@clack/prompts';
 import { execSync } from 'child_process';
-import { exit, cwd } from 'process';
+import { exit } from 'process';
 import path from 'path';
+import { URL } from 'url';
 import fs from 'fs/promises';
+
+const corePackageName = '@webrtc-player/core';
+const performancePackageName = '@webrtc-player/plugin-performance';
+const loggerPackageName = '@webrtc-player/plugin-logger';
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+const projectRoot =
+  __dirname.endsWith('/scripts') || __dirname.includes('/scripts/')
+    ? path.resolve(__dirname, '..')
+    : __dirname;
+
+const resolvePackagePath = async (packageName) => {
+  const packagesDir = path.resolve(projectRoot, 'packages');
+  const search = async (dir) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const pkgJsonPath = path.join(dir, entry.name, 'package.json');
+        try {
+          const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf-8'));
+          if (pkgJson.name === packageName) {
+            return path.dirname(pkgJsonPath);
+          }
+        } catch {
+          // not a package dir, search recursively
+        }
+        const found = await search(path.join(dir, entry.name));
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const result = await search(packagesDir);
+  if (!result)
+    throw new Error(`找不到包 "${packageName}" 对应的目录，请检查 packages/ 下是否存在该包`);
+  return result;
+};
 
 /**
  * 同步文档到包目录
@@ -12,14 +51,11 @@ import fs from 'fs/promises';
 const syncDocs = async (packageName) => {
   try {
     intro('同步文档到包目录');
-    const dirName = packageName.includes('/') ? packageName.split('/').pop() : packageName;
-    const packagePath = path.resolve(cwd(), 'packages', dirName);
-    if (!fs.access(packagePath)) {
-      throw new Error(`找不到目录: ${packagePath}，请检查 packageName 是否正确`);
-    }
+    const packagePath = await resolvePackagePath(packageName);
+    await fs.access(packagePath);
     const filesToSync = ['README.md', 'README_en.md', 'LICENSE'];
     for (const file of filesToSync) {
-      const source = path.resolve(cwd(), file);
+      const source = path.resolve(projectRoot, file);
       const target = path.resolve(packagePath, file);
       await fs.copyFile(source, target);
       intro(`✅ 已同步 ${file} 到 ${packageName}`);
@@ -35,27 +71,29 @@ const syncDocs = async (packageName) => {
 
 /**
  * 发布到 npm
- * @returns {Promise<string>} 发布结果
+ * @param {string} packageName 包名
+ * @returns {Promise<void>} 发布结果
  */
 const publishPackage = async (packageName) => {
   try {
-    await syncDocs(packageName);
-    intro('发布中...');
-    const dirName = packageName.includes('/') ? packageName.split('/').pop() : packageName;
-    const packagePath = path.resolve(cwd(), 'packages', dirName);
-    if (!fs.access(packagePath)) {
-      throw new Error(`找不到目录: ${packagePath}，请检查 packageName 是否正确`);
+    if (packageName === corePackageName) {
+      await syncDocs(packageName);
     }
-    const result = await execSync(`pnpm publish --no-git-checks --access public`, {
-      stdio: 'inherit',
-      cwd: packagePath,
-      shell: true,
+    intro('发布中...');
+    const packagePath = await resolvePackagePath(packageName);
+    await fs.access(packagePath);
+    await new Promise((resolve) => {
+      execSync(`pnpm publish --no-git-checks --access public`, {
+        stdio: 'inherit',
+        cwd: packagePath,
+        shell: true,
+      });
+      resolve();
     });
     outro('发布完成', {
       text: '发布完成!',
       textColor: 'green',
     });
-    return result;
   } catch (error) {
     outro('发布失败', {
       text: '发布失败!',
@@ -140,7 +178,11 @@ const selectUpdateVersion = async () => {
 const selectBuildPackage = async () => {
   const packages = await select({
     message: '请选择要构建的包?',
-    options: [{ label: '@webrtc-player/core', value: '@webrtc-player/core' }],
+    options: [
+      { label: corePackageName, value: corePackageName },
+      { label: performancePackageName, value: performancePackageName },
+      { label: loggerPackageName, value: loggerPackageName },
+    ],
   });
   if (isCancel(packages)) {
     cancel('已取消发布操作');
