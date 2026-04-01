@@ -3,10 +3,10 @@ import type {
   HookContext,
   RtcPlayerNotifyHookName,
   RtcPlayerPipeHookName,
+  RtcPlayerAsyncPipeHookName,
   RtcPublisherNotifyHookName,
   RtcPublisherPipeHookName,
   RtcPublisherAsyncPipeHookName,
-  RtcPlayerAsyncPipeHookName,
 } from './types';
 
 /**
@@ -117,8 +117,9 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
    */
   createContext(phase: string): HookContext<S> {
     return {
-      instance: this._instance as S,
-      phase,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      instance: this._instance as any,
+      phase: phase as HookContext<S>['phase'],
     };
   }
 
@@ -126,13 +127,19 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
    * 按注册顺序（高优先级在前）执行所有插件的通知类同步钩子。
    * callHook 不等待 Promise 返回值。
    *
+   * 支持的钩子：
+   * - onIceCandidate / onConnectionStateChange / onIceConnectionStateChange / onIceGatheringStateChange
+   * - onRemoteDescriptionSet / onTrack / onPlaying / onAfterSwitchStream
+   * - onMediaStream / onStreamingStateChange / onPublishing / onUnpublishing
+   * - onBeforeReplaceTrack / onAfterReplaceTrack / onAfterSourceChange
+   * - onTrackAttached / onPreDestroy / onPostDestroy
+   *
    * @param ctx  插件上下文
    * @param hook 钩子名称
    * @param args 传递给每个插件的参数
    */
   callHook(
     ctx: HookContext<S>,
-
     hook: RtcPlayerNotifyHookName | RtcPublisherNotifyHookName,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...args: any[]
@@ -156,6 +163,11 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
    * 按注册顺序执行所有插件的同步管道钩子。
    * 第一个有返回值的插件决定最终结果，之后的插件收到该结果作为输入。
    * 如果第一个插件返回 void，则后续插件收到 initial，直到遇到第一个返回值。
+   *
+   * 支持的钩子：
+   * - onBeforeConnect / onBeforeSetLocalDescription / onBeforeSetRemoteDescription
+   * - onBeforeICESetCandidate / onBeforeSwitchStream / onBeforeVideoPlay / onError
+   * - onBeforeGetUserMedia / onBeforeSourceChange
    *
    * @param ctx     插件上下文
    * @param hook    钩子名称
@@ -197,6 +209,10 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
   /**
    * 按注册顺序串行执行所有插件的异步管道钩子。
    * 第一个有返回值的插件决定最终结果，之后的插件收到该结果作为输入。
+   *
+   * 支持的钩子：
+   * - onBeforeVideoRender (player)
+   * - onBeforeAttachStream / onBeforeAttachTrack (publisher)
    *
    * @param ctx     插件上下文
    * @param hook    钩子名称

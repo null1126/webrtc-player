@@ -1,4 +1,5 @@
 import type { RtcPlayerPlugin, RtcPublisherPlugin } from '../plugins/types';
+export type { VideoFrameData, ProcessedVideoFrame } from '../plugins/types';
 
 /**
  * 信令提供者接口

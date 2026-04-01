@@ -2,6 +2,7 @@ import { EventEmitter } from '../utils/emitter';
 import type { RtcBaseEvents, RtcBaseOptions, SignalingProvider } from './types';
 import { RtcState } from './types';
 import { PluginManager } from '../plugins/manager';
+import { PluginPhase } from '../plugins/types';
 import type { AnyPlugin, HookContext } from '../plugins/types';
 
 /**
@@ -97,10 +98,12 @@ export abstract class RtcBase<
   }
 
   /**
-   * 绑定 PC 公共事件（连接状态、ICE 候选、ICE 连接状态）
+   * 绑定 PC 公共事件（连接状态、ICE 候选、ICE 连接状态、ICE 收集状态）
    * @param pc RTCPeerConnection 实例
    */
   protected bindPcEvents(pc: RTCPeerConnection): void {
+    const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
+
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       this.emit('state', this.mapConnectionState(state));
@@ -117,7 +120,10 @@ export abstract class RtcBase<
     };
 
     pc.onicegatheringstatechange = () => {
-      this.emit('icegatheringstate', pc.iceGatheringState);
+      const state = pc.iceGatheringState;
+      this.emit('icegatheringstate', state);
+      // Hook: onIceGatheringStateChange — 只在子类未通过 bindSignalingHooks 重写时生效
+      this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
     };
 
     pc.ontrack = (event) => this.onTrack(event);
@@ -146,7 +152,7 @@ export abstract class RtcBase<
     const msg = err instanceof Error ? err.message : String(err);
     const errorData = { error: err instanceof Error ? err : new Error(msg) };
     const handled = this.pluginManager.pipeHook(
-      this.createHookContext('error'),
+      this.createHookContext(PluginPhase.ERROR),
       'onError',
       errorData
     );
@@ -157,14 +163,37 @@ export abstract class RtcBase<
 
   /**
    * 销毁连接
+   * 子类应覆盖 getDestroyPhase() 以提供正确的 phase
    */
   destroy() {
+    const phase = this.getDestroyPhase();
+
+    // Phase: preDestroy — 所有插件在此清理 RAF、定时器等资源
+    const preCtx = this.createHookContext(phase);
+    this.pluginManager.callHook(preCtx, 'onPreDestroy');
+
+    // 触发所有插件的 uninstall
     this.pluginManager.unuseAll();
+
+    // 关闭 PeerConnection
     if (this.pc) {
       this.pc.close();
       this.pc = null;
     }
+
+    // Phase: postDestroy — pc 已关闭，插件可在此做最终清理
+    const postCtx = this.createHookContext(phase);
+    this.pluginManager.callHook(postCtx, 'onPostDestroy');
+
     this.emit('state', RtcState.DESTROYED);
+  }
+
+  /**
+   * 返回 destroy 流程中使用的 phase 值
+   * 子类覆盖此方法以提供正确的 phase
+   */
+  protected getDestroyPhase(): string {
+    return PluginPhase.PLAYER_DESTROY;
   }
 
   /**

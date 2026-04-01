@@ -1,8 +1,10 @@
 import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
 import { PluginManager } from '../plugins/manager';
-import type { MediaKind, RtcPlayerEvents, RtcPlayerOptions } from './types';
-import { RtcState } from './types';
+import { PluginPhase } from '../plugins/types';
+import type { MediaKind, RtcPlayerEvents, RtcPlayerOptions } from '../rtc/types';
+import { RtcState } from '../rtc/types';
+import type { VideoFrameData, ProcessedVideoFrame } from '../plugins/types';
 import type { RtcPlayerPlugin, RtcPlayerPluginInstance } from '../plugins/types';
 
 /**
@@ -12,6 +14,8 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
   private video?: HTMLVideoElement;
   private mediaKind: MediaKind;
   private _currentStream: MediaStream | null = null;
+  private _destroyed = false;
+  private _renderRafId: number | null = null;
 
   constructor(options: RtcPlayerOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
@@ -48,11 +52,18 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
   }
 
   /**
+   * 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API
+   */
+  getPeerConnection(): RTCPeerConnection | null {
+    return this.pc;
+  }
+
+  /**
    * 开始拉流
    */
   async play(): Promise<boolean> {
     try {
-      const ctx = this.createHookContext('play');
+      const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_CONNECT);
       const pluginOpts: RtcPlayerOptions = {
         url: this.url,
         api: '',
@@ -65,7 +76,11 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
 
       this.initPeerConnection();
       // Hook: onPeerConnectionCreated
-      this.pluginManager.callHook(ctx, 'onPeerConnectionCreated', this.pc!);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED),
+        'onPeerConnectionCreated',
+        this.pc!
+      );
 
       if (!this.pc) {
         throw new Error('Peer connection not initialized');
@@ -91,21 +106,26 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
    * 切换拉流地址
    */
   async switchStream(url: string): Promise<void> {
-    const ctx = this.createHookContext('switchStream');
+    const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SWITCH_STREAM);
     this.emit('state', RtcState.SWITCHING);
     // Hook: onBeforeSwitchStream
     const modified = this.pluginManager.pipeHook(ctx, 'onBeforeSwitchStream', url);
     url = modified ?? url;
     this.url = url;
+    this.stopRenderLoop();
     this.resetSession();
     await this.play();
     // Hook: onAfterSwitchStream
-    this.pluginManager.callHook(ctx, 'onAfterSwitchStream', url);
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PLAYER_AFTER_SWITCH_STREAM),
+      'onAfterSwitchStream',
+      url
+    );
     this.emit('state', RtcState.SWITCHED);
   }
 
   protected async createSession(): Promise<void> {
-    const ctx = this.createHookContext('createSession');
+    const ctx = this.createHookContext(PluginPhase.PLAYER_CONNECTING);
     if (!this.pc) throw new Error('Peer connection not initialized');
 
     const offer = await this.pc.createOffer();
@@ -119,7 +139,8 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
     const answerSDP = await this.signaling.play(offerSDP.sdp!, this.url);
 
     // Hook: onBeforeSetRemoteDescription
-    const modifiedAnswer = this.pluginManager.pipeHook(ctx, 'onBeforeSetRemoteDescription', {
+    const remoteCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SET_REMOTE_DESCRIPTION);
+    const modifiedAnswer = this.pluginManager.pipeHook(remoteCtx, 'onBeforeSetRemoteDescription', {
       type: 'answer' as RTCSdpType,
       sdp: answerSDP,
     });
@@ -130,12 +151,17 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
     await this.pc.setRemoteDescription(answerToSet);
 
     // Hook: onRemoteDescriptionSet
-    this.pluginManager.callHook(ctx, 'onRemoteDescriptionSet', answerToSet);
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PLAYER_REMOTE_DESCRIPTION_SET),
+      'onRemoteDescriptionSet',
+      answerToSet
+    );
   }
 
   /** 绑定信令交互中产生的 PC 事件钩子 */
   private bindSignalingHooks(ctx: ReturnType<RtcPlayer['createHookContext']>): void {
     const prevState = { state: this.connectionState };
+    const prevIceGathering = { state: this.pc!.iceGatheringState };
     const onStateChange = () => {
       const next = { state: this.pc!.connectionState, previousState: prevState.state };
       prevState.state = next.state;
@@ -146,15 +172,27 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
       this.emit('iceconnectionstate', this.pc!.iceConnectionState);
       this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', this.pc!.iceConnectionState);
     };
+    const onIceGathering = () => {
+      const state = this.pc!.iceGatheringState;
+      if (prevIceGathering.state !== state) {
+        prevIceGathering.state = state;
+        this.emit('icegatheringstate', state);
+        this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+      }
+    };
     const onIceCandidate = (event: RTCPeerConnectionIceEvent) => {
       if (event.candidate) {
         this.emit('icecandidate', event.candidate);
-        this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate: event.candidate });
+        this.pluginManager.callHook(ctx, 'onIceCandidate', {
+          candidate: event.candidate,
+          isRemote: false,
+        });
       }
     };
     this.pc!.onconnectionstatechange = onStateChange;
     this.pc!.oniceconnectionstatechange = onIce;
     this.pc!.onicecandidate = onIceCandidate;
+    this.pc!.onicegatheringstatechange = onIceGathering;
   }
 
   protected resetSession(): void {
@@ -166,7 +204,7 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
   }
 
   protected onTrack(event: RTCTrackEvent): void {
-    const ctx = this.createHookContext('track');
+    const ctx = this.createHookContext(PluginPhase.PLAYER_TRACK);
     const stream = event.streams[0];
     this._currentStream = stream;
     const videoTrack = stream.getVideoTracks()[0];
@@ -184,13 +222,87 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
     this.emit('track', { stream, event });
 
     if (this.video) {
-      this.video.srcObject = stream;
+      // Hook: onBeforeVideoPlay — allows plugins to replace the stream
+      const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
+      const modifiedStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
+      const finalStream = modifiedStream ?? stream;
+
+      this.video.srcObject = finalStream;
       this.video.muted = true;
       this.video.onloadedmetadata = () => {
+        this.video!.play();
         // Hook: onPlaying
-        this.pluginManager.callHook(ctx, 'onPlaying', stream);
-        this.video?.play();
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PLAYER_VIDEO_PLAYING),
+          'onPlaying',
+          finalStream
+        );
+        // 启动帧级渲染钩子（onBeforeVideoRender）
+        this.startRenderLoop(finalStream);
       };
     }
+  }
+
+  /**
+   * 启动基于 requestAnimationFrame 的帧级渲染钩子
+   * 调用 onBeforeVideoRender 钩子，支持插件在每帧渲染前进行处理
+   */
+  private startRenderLoop(stream: MediaStream): void {
+    this.stopRenderLoop();
+    if (!this.video) return;
+
+    const video = this.video;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const frameData: VideoFrameData = {
+      timestamp: 0,
+      track: videoTrack,
+      stream,
+    };
+
+    const render = () => {
+      if (this._destroyed || !this.video) return;
+      frameData.timestamp = performance.now();
+
+      // Hook: onBeforeVideoRender
+      const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_RENDER);
+      const result = this.pluginManager.asyncPipeHook(
+        ctx,
+        'onBeforeVideoRender',
+        undefined as ProcessedVideoFrame | undefined,
+        video,
+        frameData
+      );
+
+      result.then((processed) => {
+        if (!this._destroyed && this.video) {
+          if (processed && !processed.skipRender) {
+            // 插件返回了处理后的帧，由插件自行渲染到目标 canvas
+          }
+          // 默认渲染由浏览器 video 元素自动完成，无需手动 drawImage
+        }
+      });
+
+      this._renderRafId = requestAnimationFrame(render);
+    };
+
+    this._renderRafId = requestAnimationFrame(render);
+  }
+
+  /**
+   * 停止帧渲染循环
+   */
+  private stopRenderLoop(): void {
+    if (this._renderRafId !== null) {
+      cancelAnimationFrame(this._renderRafId);
+      this._renderRafId = null;
+    }
+  }
+
+  public override destroy(): void {
+    this._destroyed = true;
+    this.stopRenderLoop();
+    super.destroy();
   }
 }

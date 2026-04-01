@@ -1,6 +1,7 @@
 import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
 import { PluginManager } from '../plugins/manager';
+import { PluginPhase } from '../plugins/types';
 import type {
   MediaSource,
   MediaSourceMicrophone,
@@ -48,11 +49,22 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
+   * 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API
+   */
+  getPeerConnection(): RTCPeerConnection | null {
+    return this.pc;
+  }
+
+  protected override getDestroyPhase(): string {
+    return PluginPhase.PUBLISHER_DESTROY;
+  }
+
+  /**
    * 开始推流
    */
   async start(): Promise<boolean> {
     try {
-      const ctx = this.createHookContext('start');
+      const ctx = this.createHookContext(PluginPhase.PUBLISHER_STARTING);
 
       // Hook: onStreamingStateChange('connecting')
       this.pluginManager.callHook(ctx, 'onStreamingStateChange', 'connecting');
@@ -60,7 +72,11 @@ export class RtcPublisher extends RtcBase<
       this.initPeerConnection();
       // Hook: onPeerConnectionCreated — immediately after init so plugins
       // can configure pc (e.g. add transceivers, set codecs, etc.)
-      this.pluginManager.callHook(ctx, 'onPeerConnectionCreated', this.pc!);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED),
+        'onPeerConnectionCreated',
+        this.pc!
+      );
       this.bindCommonHooks(ctx);
 
       await this.acquireSource(ctx);
@@ -69,13 +85,21 @@ export class RtcPublisher extends RtcBase<
 
       // Hook: onPublishing
       if (this.localStream) {
-        this.pluginManager.callHook(ctx, 'onPublishing', this.localStream);
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PUBLISHER_STREAM_START),
+          'onPublishing',
+          this.localStream
+        );
       }
 
       this.emit('streamstart', { stream: this.localStream as MediaStream });
 
       // Hook: onStreamingStateChange('streaming')
-      this.pluginManager.callHook(ctx, 'onStreamingStateChange', 'streaming');
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_STREAMING_STATE_CHANGE),
+        'onStreamingStateChange',
+        'streaming'
+      );
 
       return true;
     } catch (err) {
@@ -88,14 +112,18 @@ export class RtcPublisher extends RtcBase<
    * 停止推流
    */
   stop(): void {
-    const ctx = this.createHookContext('stop');
+    const ctx = this.createHookContext(PluginPhase.PUBLISHER_STREAM_STOP);
     // Hook: onUnpublishing
     this.pluginManager.callHook(ctx, 'onUnpublishing', this.localStream);
     this.resetSession();
     this.releaseSource();
     this.emit('streamstop', undefined);
     // Hook: onStreamingStateChange('idle')
-    this.pluginManager.callHook(ctx, 'onStreamingStateChange', 'idle');
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PUBLISHER_STREAMING_STATE_CHANGE),
+      'onStreamingStateChange',
+      'idle'
+    );
   }
 
   /**
@@ -103,7 +131,7 @@ export class RtcPublisher extends RtcBase<
    * @param source 新的媒体源
    */
   async switchSource(source: MediaSource): Promise<void> {
-    const ctx = this.createHookContext('switchSource');
+    const ctx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SOURCE_CHANGE);
     this.emit('state', RtcState.SWITCHING);
 
     // Hook: onBeforeSourceChange
@@ -148,7 +176,11 @@ export class RtcPublisher extends RtcBase<
     this.emit('state', RtcState.SWITCHED);
     this.emit('sourcechange', source);
     // Hook: onAfterSourceChange
-    this.pluginManager.callHook(ctx, 'onAfterSourceChange', source);
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PUBLISHER_AFTER_SOURCE_CHANGE),
+      'onAfterSourceChange',
+      source
+    );
   }
 
   /**
@@ -165,7 +197,8 @@ export class RtcPublisher extends RtcBase<
 
     const answerSDP = await this.signaling.publish(offerSDP.sdp!, this.url);
     // Hook: onBeforeSetRemoteDescription
-    const modifiedAnswer = this.pluginManager.pipeHook(ctx, 'onBeforeSetRemoteDescription', {
+    const remoteCtx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SET_REMOTE_DESCRIPTION);
+    const modifiedAnswer = this.pluginManager.pipeHook(remoteCtx, 'onBeforeSetRemoteDescription', {
       type: 'answer' as RTCSdpType,
       sdp: answerSDP,
     });
@@ -176,7 +209,11 @@ export class RtcPublisher extends RtcBase<
     await this.pc.setRemoteDescription(answerToSet);
 
     // Hook: onRemoteDescriptionSet
-    this.pluginManager.callHook(ctx, 'onRemoteDescriptionSet', answerToSet);
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PUBLISHER_REMOTE_DESCRIPTION_SET),
+      'onRemoteDescriptionSet',
+      answerToSet
+    );
   }
 
   /**
@@ -194,7 +231,7 @@ export class RtcPublisher extends RtcBase<
    * 处理轨道事件
    */
   protected onTrack(event: RTCTrackEvent): void {
-    const ctx = this.createHookContext('track');
+    const ctx = this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED);
     const stream = event.streams[0];
     const track = event.track;
     this.pluginManager.callHook(ctx, 'onTrack', track, stream, event);
@@ -202,10 +239,12 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 绑定公共钩子（连接状态、ICE 候选等）
+   * 绑定公共钩子（连接状态、ICE 候选、ICE 连接状态、ICE 收集状态）
    */
   private bindCommonHooks(ctx: HookContext<RtcPublisherPluginInstance>): void {
     const prevState = { state: this.connectionState };
+    const prevIceGathering = { state: this.pc!.iceGatheringState };
+
     this.pc!.onconnectionstatechange = () => {
       const next = { state: this.pc!.connectionState, previousState: prevState.state };
       prevState.state = next.state;
@@ -216,13 +255,25 @@ export class RtcPublisher extends RtcBase<
     this.pc!.onicecandidate = (event) => {
       if (event.candidate) {
         this.emit('icecandidate', event.candidate);
-        this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate: event.candidate });
+        this.pluginManager.callHook(ctx, 'onIceCandidate', {
+          candidate: event.candidate,
+          isRemote: false,
+        });
       }
     };
 
     this.pc!.oniceconnectionstatechange = () => {
       this.emit('iceconnectionstate', this.pc!.iceConnectionState);
       this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', this.pc!.iceConnectionState);
+    };
+
+    this.pc!.onicegatheringstatechange = () => {
+      const state = this.pc!.iceGatheringState;
+      if (prevIceGathering.state !== state) {
+        prevIceGathering.state = state;
+        this.emit('icegatheringstate', state);
+        this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+      }
     };
   }
 
@@ -236,7 +287,11 @@ export class RtcPublisher extends RtcBase<
     if (s.type === 'custom') {
       this.localStream = s.stream;
       // Hook: onMediaStream — immediately, before attachStream
-      this.pluginManager.callHook(ctx, 'onMediaStream', this.localStream);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_MEDIA_STREAM),
+        'onMediaStream',
+        this.localStream
+      );
       this.bindVideo();
       return s.stream;
     }
@@ -258,9 +313,13 @@ export class RtcPublisher extends RtcBase<
     this.bindVideo();
 
     // Hook: onMediaStream — always called after localStream is available,
-    // before onBeforeAttachTrack runs. Plugins can rely on this ordering.
+    // before onBeforeAttachStream/onBeforeAttachTrack run.
     if (this.localStream) {
-      this.pluginManager.callHook(ctx, 'onMediaStream', this.localStream);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_MEDIA_STREAM),
+        'onMediaStream',
+        this.localStream
+      );
     }
 
     return this.localStream;
@@ -336,46 +395,78 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 将媒体流绑定到轨道
-   * 支持异步 pipe 钩子（onBeforeAttachTrack 可以是 async）
    *
-   * @param ctx 调用方已创建的上下文
+   * 执行顺序：
+   * 1. onBeforeAttachStream(stream) — 接收完整 stream，插件可在此混流/添加水印
+   * 2. onBeforeAttachTrack(track, stream) — 接收单个 track（video/audio 各一次）
+   * 3. transceiver.addTrack() — 实际绑定
+   * 4. onTrackAttached(track, stream) — 绑定完成后
+   *
+   * @param _ctx 调用方已创建的上下文（内部通过 createHookContext 重新构建 phase）
    */
-  private async attachStream(ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
+  private async attachStream(_ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
     if (!this.pc || !this.localStream) return;
 
     this.activeTransceivers = [];
 
-    const videoTrack = this.localStream.getVideoTracks()[0];
-    const audioTrack = this.localStream.getAudioTracks()[0];
+    // Step 1: Hook: onBeforeAttachStream — 接收完整 MediaStream
+    const attachCtx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_ATTACH_STREAM);
+    const processedStreamWrapper = await this.pluginManager.asyncPipeHook(
+      attachCtx,
+      'onBeforeAttachStream',
+      this.localStream
+    );
+    const streamToAttach = processedStreamWrapper ?? this.localStream;
+
+    const videoTrack = streamToAttach.getVideoTracks()[0];
+    const audioTrack = streamToAttach.getAudioTracks()[0];
 
     if (videoTrack) {
-      // Hook: onBeforeAttachTrack — asyncPipeHook so plugins can do async work
-      const processedVideoTrack =
-        (await this.pluginManager.asyncPipeHook(
-          ctx,
-          'onBeforeAttachTrack',
-          videoTrack,
-          this.localStream
-        )) ?? videoTrack;
-      const videoTransceiver = this.pc.addTransceiver(processedVideoTrack, {
+      // Hook: onBeforeAttachTrack — async for video
+      const processedVideoTrack = await this.pluginManager.asyncPipeHook(
+        attachCtx,
+        'onBeforeAttachTrack',
+        videoTrack,
+        streamToAttach
+      );
+      const finalVideoTrack = processedVideoTrack ?? videoTrack;
+
+      const videoTransceiver = this.pc.addTransceiver(finalVideoTrack, {
         direction: 'sendonly',
       });
       this.activeTransceivers.push(videoTransceiver);
+
+      // Hook: onTrackAttached — after transceiver is created
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED),
+        'onTrackAttached',
+        finalVideoTrack,
+        streamToAttach
+      );
     }
 
     if (audioTrack) {
-      // Hook: onBeforeAttachTrack — asyncPipeHook for audio too
-      const processedAudioTrack =
-        (await this.pluginManager.asyncPipeHook(
-          ctx,
-          'onBeforeAttachTrack',
-          audioTrack,
-          this.localStream
-        )) ?? audioTrack;
-      const audioTransceiver = this.pc.addTransceiver(processedAudioTrack, {
+      // Hook: onBeforeAttachTrack — async for audio
+      const processedAudioTrack = await this.pluginManager.asyncPipeHook(
+        attachCtx,
+        'onBeforeAttachTrack',
+        audioTrack,
+        streamToAttach
+      );
+      const finalAudioTrack = processedAudioTrack ?? audioTrack;
+
+      const audioTransceiver = this.pc.addTransceiver(finalAudioTrack, {
         direction: 'sendonly',
       });
       this.activeTransceivers.push(audioTransceiver);
+
+      // Hook: onTrackAttached — after transceiver is created
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED),
+        'onTrackAttached',
+        finalAudioTrack,
+        streamToAttach
+      );
     }
 
     if (!videoTrack && !audioTrack) {
