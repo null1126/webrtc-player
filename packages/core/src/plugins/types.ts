@@ -41,14 +41,33 @@ export interface ErrorData {
 }
 
 /**
+ * 拉流插件宿主实例可访问的阶段
+ */
+export type PlayerPhase = 'play' | 'switchStream' | 'createSession' | 'track' | 'error';
+
+/**
+ * 推流插件宿主实例可访问的阶段
+ */
+export type PublisherPhase =
+  | 'getUserMedia'
+  | 'attachTrack'
+  | 'replaceTrack'
+  | 'publish'
+  | 'sourceChange'
+  | 'createSession'
+  | 'track'
+  | 'streamingState'
+  | 'error';
+
+/**
  * 插件上下文
  * 随每个钩子调用一起传递，让插件能够了解当前调用的来源和阶段
  */
 export interface HookContext<S = unknown> {
   /** 当前调用的宿主实例（RtcPlayer 或 RtcPublisher） */
   instance: S;
-  /** 调用的阶段标识（如 'attachStream'、'createSession'、'switchStream'） */
-  phase: string;
+  /** 调用的阶段标识 */
+  phase: PlayerPhase | PublisherPhase | string;
 }
 
 /**
@@ -59,7 +78,11 @@ export interface HookContext<S = unknown> {
  */
 export interface RtcBasePlugin<I = unknown> {
   name: string;
-  version?: string;
+  /**
+   * 插件优先级，数值越大越先执行，默认 0。
+   * 同一优先级的插件按注册顺序执行。
+   */
+  priority?: number;
   /**
    * 安装生命周期
    * 在插件注册时立即调用，插件可在此访问宿主实例。
@@ -127,6 +150,12 @@ export interface RtcPlayerPlugin
  */
 export interface RtcPlayerPluginInstance {
   readonly connectionState: RTCPeerConnectionState;
+  /** 当前拉流的 URL */
+  getStreamUrl(): string;
+  /** 获取已绑定的 video 元素 */
+  getVideoElement(): HTMLVideoElement | undefined;
+  /** 获取当前远端 MediaStream（播放后可用） */
+  getCurrentStream(): MediaStream | null;
 }
 
 /**
@@ -216,54 +245,79 @@ export type AnyPlugin = RtcPlayerPlugin | RtcPublisherPlugin;
 // 钩子名称定义（用于类型安全的 hook 方法）
 // ============================================================
 
-/** 拉流插件公共钩子 */
-export type RtcPlayerCommonHookName =
+/**
+ * 通知类同步钩子 — 通过 callHook 调用，不等待返回值
+ */
+export type RtcPlayerNotifyHook =
   | 'onPeerConnectionCreated'
   | 'onIceCandidate'
-  | 'onBeforeICESetCandidate'
   | 'onConnectionStateChange'
   | 'onIceConnectionStateChange'
-  | 'onError';
-
-/** 拉流插件特有钩子 */
-export type RtcPlayerOwnHookName =
-  | 'onBeforeConnect'
-  | 'onBeforeSetLocalDescription'
-  | 'onBeforeSetRemoteDescription'
   | 'onRemoteDescriptionSet'
   | 'onTrack'
   | 'onPlaying'
-  | 'onBeforeSwitchStream'
   | 'onAfterSwitchStream';
 
-/** 拉流插件所有钩子名称 */
-export type RtcPlayerHookName = RtcPlayerCommonHookName | RtcPlayerOwnHookName;
-
-/** 推流插件公共钩子 */
-export type RtcPublisherCommonHookName =
+export type RtcPublisherNotifyHook =
   | 'onPeerConnectionCreated'
   | 'onIceCandidate'
-  | 'onBeforeICESetCandidate'
   | 'onConnectionStateChange'
   | 'onIceConnectionStateChange'
-  | 'onError';
-
-/** 推流插件特有钩子 */
-export type RtcPublisherOwnHookName =
-  | 'onBeforeGetUserMedia'
-  | 'onBeforeSetLocalDescription'
-  | 'onBeforeSetRemoteDescription'
   | 'onRemoteDescriptionSet'
   | 'onMediaStream'
-  | 'onBeforeAttachTrack'
-  | 'onBeforeReplaceTrack'
-  | 'onAfterReplaceTrack'
-  | 'onTrack'
   | 'onStreamingStateChange'
   | 'onPublishing'
   | 'onUnpublishing'
-  | 'onBeforeSourceChange'
-  | 'onAfterSourceChange';
+  | 'onBeforeReplaceTrack'
+  | 'onAfterReplaceTrack'
+  | 'onAfterSourceChange'
+  | 'onTrack';
 
+/**
+ * 管道类同步钩子 — 通过 pipeHook 调用，可修改初始值
+ */
+export type RtcPlayerPipeHook =
+  | 'onBeforeConnect'
+  | 'onBeforeSetLocalDescription'
+  | 'onBeforeSetRemoteDescription'
+  | 'onBeforeICESetCandidate'
+  | 'onBeforeSwitchStream'
+  | 'onError';
+
+export type RtcPublisherPipeHook =
+  | 'onBeforeGetUserMedia'
+  | 'onBeforeSetLocalDescription'
+  | 'onBeforeSetRemoteDescription'
+  | 'onBeforeICESetCandidate'
+  | 'onBeforeSourceChange'
+  | 'onError';
+
+/**
+ * 异步管道钩子 — 通过 asyncPipeHook 调用，支持 Promise 返回值
+ */
+export type RtcPlayerAsyncPipeHook = never;
+export type RtcPublisherAsyncPipeHook = 'onBeforeAttachTrack';
+
+/** 拉流插件所有同步通知钩子 */
+export type RtcPlayerNotifyHookName = RtcPlayerNotifyHook;
+/** 拉流插件所有同步管道钩子 */
+export type RtcPlayerPipeHookName = RtcPlayerPipeHook;
+/** 拉流插件所有异步管道钩子 */
+export type RtcPlayerAsyncPipeHookName = RtcPlayerAsyncPipeHook;
+/** 拉流插件所有钩子名称 */
+export type RtcPlayerHookName =
+  | RtcPlayerNotifyHookName
+  | RtcPlayerPipeHookName
+  | RtcPlayerAsyncPipeHookName;
+
+/** 推流插件所有同步通知钩子 */
+export type RtcPublisherNotifyHookName = RtcPublisherNotifyHook;
+/** 推流插件所有同步管道钩子 */
+export type RtcPublisherPipeHookName = RtcPublisherPipeHook;
+/** 推流插件所有异步管道钩子 */
+export type RtcPublisherAsyncPipeHookName = RtcPublisherAsyncPipeHook;
 /** 推流插件所有钩子名称 */
-export type RtcPublisherHookName = RtcPublisherCommonHookName | RtcPublisherOwnHookName;
+export type RtcPublisherHookName =
+  | RtcPublisherNotifyHookName
+  | RtcPublisherPipeHookName
+  | RtcPublisherAsyncPipeHookName;

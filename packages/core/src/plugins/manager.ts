@@ -1,4 +1,13 @@
-import type { AnyPlugin, HookContext, RtcPlayerHookName, RtcPublisherHookName } from './types';
+import type {
+  AnyPlugin,
+  HookContext,
+  RtcPlayerNotifyHookName,
+  RtcPlayerPipeHookName,
+  RtcPublisherNotifyHookName,
+  RtcPublisherPipeHookName,
+  RtcPublisherAsyncPipeHookName,
+  RtcPlayerAsyncPipeHookName,
+} from './types';
 
 /**
  * 插件管理器
@@ -25,9 +34,14 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
     return this.plugins as ReadonlyArray<T>;
   }
 
+  private sortPlugins(): void {
+    this.plugins.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+  }
+
   /**
    * 注册一个插件
    * - 相同名称的插件不能重复注册
+   * - 按 priority 降序排列，高优先级在前
    * - 安装时自动调用插件的 install 生命周期
    *
    * @returns 返回 this，支持链式调用
@@ -38,9 +52,10 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
       return this;
     }
     this.plugins.push(plugin);
+    this.sortPlugins();
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = this._instance !== null ? plugin.install?.(this._instance as any) : undefined;
+      const result = plugin.install?.(this._instance as any);
       if (result instanceof Promise) {
         result.catch((err) => {
           console.error(`[PluginManager] Plugin "${plugin.name}" install failed:`, err);
@@ -108,15 +123,19 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
   }
 
   /**
-   * 按注册顺序执行所有插件的通知类钩子
+   * 按注册顺序（高优先级在前）执行所有插件的通知类同步钩子。
+   * callHook 不等待 Promise 返回值。
+   *
    * @param ctx  插件上下文
    * @param hook 钩子名称
    * @param args 传递给每个插件的参数
    */
-  callHook<H extends RtcPlayerHookName | RtcPublisherHookName>(
+  callHook(
     ctx: HookContext<S>,
-    hook: H,
-    ...args: unknown[]
+
+    hook: RtcPlayerNotifyHookName | RtcPublisherNotifyHookName,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
   ): void {
     for (const plugin of this.plugins) {
       const fn = (plugin as unknown as Record<string, unknown>)[hook];
@@ -134,7 +153,7 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
   }
 
   /**
-   * 按注册顺序执行所有插件的 pipe 钩子。
+   * 按注册顺序执行所有插件的同步管道钩子。
    * 第一个有返回值的插件决定最终结果，之后的插件收到该结果作为输入。
    * 如果第一个插件返回 void，则后续插件收到 initial，直到遇到第一个返回值。
    *
@@ -146,9 +165,10 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
    */
   pipeHook<Ret>(
     ctx: HookContext<S>,
-    hook: RtcPlayerHookName | RtcPublisherHookName,
+    hook: RtcPlayerPipeHookName | RtcPublisherPipeHookName,
     initial: Ret,
-    ...args: unknown[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
   ): Ret | undefined {
     let value: Ret | undefined = initial;
     let found = false;
@@ -175,39 +195,7 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
   }
 
   /**
-   * 按注册顺序执行所有插件的异步通知钩子
-   * @param ctx  插件上下文
-   * @param hook 钩子名称
-   * @param args 传递给每个插件的参数
-   */
-  async asyncHook<H extends RtcPlayerHookName | RtcPublisherHookName>(
-    ctx: HookContext<S>,
-    hook: H,
-    ...args: unknown[]
-  ): Promise<void> {
-    const promises = this.plugins
-      .filter((p) => typeof (p as unknown as Record<string, unknown>)[hook] === 'function')
-      .map(async (plugin) => {
-        try {
-          const fn = (plugin as unknown as Record<string, unknown>)[hook] as (
-            ...args: unknown[]
-          ) => unknown;
-          const result = fn(ctx, ...args);
-          if (result instanceof Promise) {
-            await result;
-          }
-        } catch (err) {
-          console.error(
-            `[PluginManager] Error in plugin "${plugin.name}" hook "${String(hook)}":`,
-            err
-          );
-        }
-      });
-    await Promise.all(promises);
-  }
-
-  /**
-   * 按注册顺序执行所有插件的异步 pipe 钩子。
+   * 按注册顺序串行执行所有插件的异步管道钩子。
    * 第一个有返回值的插件决定最终结果，之后的插件收到该结果作为输入。
    *
    * @param ctx     插件上下文
@@ -217,9 +205,10 @@ export class PluginManager<T extends AnyPlugin = AnyPlugin, S = unknown> {
    */
   async asyncPipeHook<Ret>(
     ctx: HookContext<S>,
-    hook: RtcPlayerHookName | RtcPublisherHookName,
+    hook: RtcPlayerAsyncPipeHookName | RtcPublisherAsyncPipeHookName,
     initial: Ret,
-    ...args: unknown[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
   ): Promise<Ret | undefined> {
     let value: Ret | undefined = initial;
     let found = false;

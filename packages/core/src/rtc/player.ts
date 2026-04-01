@@ -11,6 +11,7 @@ import type { RtcPlayerPlugin, RtcPlayerPluginInstance } from '../plugins/types'
 export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlayerPluginInstance> {
   private video?: HTMLVideoElement;
   private mediaKind: MediaKind;
+  private _currentStream: MediaStream | null = null;
 
   constructor(options: RtcPlayerOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
@@ -23,6 +24,27 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
     for (const plugin of plugins) {
       pluginManager.use(plugin);
     }
+  }
+
+  /**
+   * 获取当前拉流的 URL（暴露给插件实例）
+   */
+  getStreamUrl(): string {
+    return this.url;
+  }
+
+  /**
+   * 获取已绑定的 video 元素
+   */
+  getVideoElement(): HTMLVideoElement | undefined {
+    return this.video;
+  }
+
+  /**
+   * 获取当前远端 MediaStream（播放后可用）
+   */
+  getCurrentStream(): MediaStream | null {
+    return this._currentStream;
   }
 
   /**
@@ -124,11 +146,19 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
       this.emit('iceconnectionstate', this.pc!.iceConnectionState);
       this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', this.pc!.iceConnectionState);
     };
+    const onIceCandidate = (event: RTCPeerConnectionIceEvent) => {
+      if (event.candidate) {
+        this.emit('icecandidate', event.candidate);
+        this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate: event.candidate });
+      }
+    };
     this.pc!.onconnectionstatechange = onStateChange;
     this.pc!.oniceconnectionstatechange = onIce;
+    this.pc!.onicecandidate = onIceCandidate;
   }
 
   protected resetSession(): void {
+    this._currentStream = null;
     if (this.pc) {
       this.pc.close();
       this.pc = null;
@@ -138,6 +168,7 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
   protected onTrack(event: RTCTrackEvent): void {
     const ctx = this.createHookContext('track');
     const stream = event.streams[0];
+    this._currentStream = stream;
     const videoTrack = stream.getVideoTracks()[0];
     const audioTrack = stream.getAudioTracks()[0];
 
