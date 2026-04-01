@@ -95,6 +95,9 @@ importers:
       '@webrtc-player/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@webrtc-player/plugin-logger':
+        specifier: workspace:*
+        version: link:../../packages/plugins/plugin-logger
       '@webrtc-player/plugin-performance':
         specifier: workspace:*
         version: link:../../packages/plugins/plugin-performance
@@ -143,6 +146,21 @@ importers:
         version: 8.0.0(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.2)
 
   packages/core: {}
+
+  packages/plugins/plugin-logger:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      '@webrtc-player/core':
+        specifier: workspace:*
+        version: link:../../core
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
 
   packages/plugins/plugin-performance:
     devDependencies:

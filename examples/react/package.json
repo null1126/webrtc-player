@@ -12,6 +12,7 @@
   "dependencies": {
     "@webrtc-player/core": "workspace:*",
     "@webrtc-player/plugin-performance": "workspace:*",
+    "@webrtc-player/plugin-logger": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

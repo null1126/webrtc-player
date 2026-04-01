@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { RtcPlayer, RtcState } from '@webrtc-player/core';
 import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
 import type { PerformanceData } from '@webrtc-player/plugin-performance';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
@@ -31,6 +32,12 @@ export function StreamPlayer({
   async function handleStart() {
     if (playerRef.current) return;
 
+    const loggerPlugin = createPlayerLoggerPlugin({}, (entry) => {
+      if (entry.level === 'info' || entry.level === 'error') {
+        appendLog(entry.level, entry.message);
+      }
+    });
+
     const performancePlugin = createPerformancePlugin({ interval: 1000 }, (data) => {
       setPerfData(data);
     });
@@ -39,36 +46,19 @@ export function StreamPlayer({
       url: streamUrl,
       api: apiUrl,
       video: videoRef.current ?? undefined,
-      plugins: [performancePlugin],
+      plugins: [performancePlugin, loggerPlugin],
     });
 
     playerRef.current = player;
 
-    player.on('state', (s) => {
-      setState(s);
-      appendLog('info', `[状态] ${s}`);
-    });
+    player.on('state', (s) => setState(s));
 
-    player.on('error', (err) => {
-      appendLog('error', `[错误] ${err}`);
-    });
-
-    player.on('track', ({ stream }) => {
-      setRemoteStream(stream);
-      appendLog(
-        'info',
-        `[事件] track — 收到远端流 (${stream.getVideoTracks().length}v / ${stream.getAudioTracks().length}a)`
-      );
-    });
-
-    player.on('icecandidate', (candidate) => {
-      appendLog('info', `[ICE] ${candidate.candidate.slice(0, 60)}…`);
-    });
+    player.on('track', ({ stream }) => setRemoteStream(stream));
 
     try {
       await player.play();
     } catch (err) {
-      appendLog('error', `[启动失败] ${err instanceof Error ? err.message : err}`);
+      console.error(err);
     }
   }
 
@@ -77,17 +67,15 @@ export function StreamPlayer({
     playerRef.current = null;
     setPerfData(null);
     setState(RtcState.DESTROYED);
-    appendLog('info', '[操作] 停止拉流');
   }
 
   async function handleSwitch(newUrl: string) {
     if (!playerRef.current) return;
     onStreamUrlChange(newUrl);
-    appendLog('info', `[操作] 切换至 ${newUrl}`);
     try {
       await playerRef.current.switchStream(newUrl);
     } catch (err) {
-      appendLog('error', `[切换失败] ${err instanceof Error ? err.message : err}`);
+      console.error(err);
     }
   }
 
