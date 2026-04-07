@@ -232,11 +232,7 @@ export class RtcPublisher extends RtcBase<
   protected async performReconnect(): Promise<void> {
     this.resetSession();
     this.releaseSource();
-    try {
-      await this.start();
-    } catch {
-      // start() throws on failure; doReconnect's .catch() handles retry scheduling
-    }
+    await this.start();
   }
 
   /**
@@ -487,7 +483,10 @@ export class RtcPublisher extends RtcBase<
     const target = stream ?? this.localStream;
     if (!target) return;
 
-    target.getTracks().forEach((track) => track.stop());
+    const shouldStopTracks = !(this._source.type === 'custom' && target === this._source.stream);
+    if (shouldStopTracks) {
+      target.getTracks().forEach((track) => track.stop());
+    }
 
     if (!stream) {
       this.localStream = null;

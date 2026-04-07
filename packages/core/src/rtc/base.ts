@@ -40,6 +40,10 @@ export abstract class RtcBase<
   private _reconnectState: ReconnectState = 'idle';
   /** 重连调度器 */
   private _retryController: RetryController | null = null;
+  /** disconnected 兜底重连延迟（毫秒） */
+  private _disconnectedTimeout = 5000;
+  /** disconnected 兜底定时器 */
+  private _disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     options: RtcBaseOptions,
@@ -53,12 +57,16 @@ export abstract class RtcBase<
     const reconnectOptions = options.reconnect;
     this._reconnectEnabled = reconnectOptions?.enabled ?? true;
     this._reconnectMaxRetries = reconnectOptions?.maxRetries ?? 5;
+    this._disconnectedTimeout = reconnectOptions?.disconnectedTimeout ?? 5000;
+
     this._retryController = new RetryController(
       {
         enabled: this._reconnectEnabled,
         maxRetries: this._reconnectMaxRetries,
         interval: reconnectOptions?.interval ?? 2000,
         exponential: reconnectOptions?.exponential ?? false,
+        maxInterval: reconnectOptions?.maxInterval,
+        jitterRatio: reconnectOptions?.jitterRatio,
       },
       {
         onRetry: ({ retryCount, maxRetries, interval }) => {
@@ -235,6 +243,7 @@ export abstract class RtcBase<
   destroy() {
     // 停止重连调度
     this._retryController?.dispose();
+    this.clearDisconnectedTimer();
     this._reconnectState = 'idle';
 
     const phase = this.getDestroyPhase();
@@ -307,11 +316,8 @@ export abstract class RtcBase<
       if (state !== 'failed') {
         return;
       }
-      if (this._reconnectState !== 'idle') {
-        return;
-      }
-      this._reconnectState = 'pending';
-      this.scheduleReconnect();
+      this.clearDisconnectedTimer();
+      this.beginReconnectIfIdle();
       return;
     }
 
@@ -322,8 +328,8 @@ export abstract class RtcBase<
     }
 
     if (state === 'disconnected') {
-      // disconnected 是临时状态：取消已调度任务，但保留累计重试次数
-      this.resetReconnect(false, false);
+      // disconnected 常见于临时抖动，先等待一段时间；若未恢复再触发重连
+      this.scheduleDisconnectedFallback();
       return;
     }
 
@@ -331,12 +337,8 @@ export abstract class RtcBase<
       return;
     }
 
-    if (this._reconnectState !== 'idle') {
-      return;
-    }
-
-    this._reconnectState = 'pending';
-    this.scheduleReconnect();
+    this.clearDisconnectedTimer();
+    this.beginReconnectIfIdle();
   }
 
   /**
@@ -347,12 +349,45 @@ export abstract class RtcBase<
   }
 
   /**
+   * disconnected 场景下的兜底重连调度
+   */
+  private scheduleDisconnectedFallback(): void {
+    this.clearDisconnectedTimer();
+    this._disconnectedTimer = setTimeout(() => {
+      this._disconnectedTimer = null;
+      this.beginReconnectIfIdle();
+    }, this._disconnectedTimeout);
+  }
+
+  /**
+   * 清理 disconnected 定时器
+   */
+  private clearDisconnectedTimer(): void {
+    if (this._disconnectedTimer !== null) {
+      clearTimeout(this._disconnectedTimer);
+      this._disconnectedTimer = null;
+    }
+  }
+
+  /**
+   * 若当前空闲则开始重连
+   */
+  private beginReconnectIfIdle(): void {
+    if (this._reconnectState !== 'idle') {
+      return;
+    }
+    this._reconnectState = 'pending';
+    this.scheduleReconnect();
+  }
+
+  /**
    * 重置重连状态
    * @param notifySuccess 是否通知重连成功
    */
   private resetReconnect(notifySuccess: boolean, resetCount = true): void {
     const shouldNotify = notifySuccess && this._reconnectState !== 'idle';
     this._reconnectState = 'idle';
+    this.clearDisconnectedTimer();
 
     if (resetCount) {
       this._retryController?.reset();
@@ -372,8 +407,9 @@ export abstract class RtcBase<
     try {
       await this.performReconnect();
     } catch {
-      // performReconnect 失败，恢复为可再次调度状态
+      // performReconnect 失败，恢复为可再次调度状态并继续重试
       this._reconnectState = 'idle';
+      this.scheduleReconnect();
     }
   }
 
@@ -411,6 +447,7 @@ export abstract class RtcBase<
 
     // 重置重连状态
     this._reconnectState = 'idle';
+    this.clearDisconnectedTimer();
     this._retryController?.reset();
   }
 

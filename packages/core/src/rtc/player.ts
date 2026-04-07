@@ -92,8 +92,8 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
         this.pc.addTransceiver('audio', { direction: 'recvonly' });
       }
 
-      await this.createSession();
       this.url = finalUrl;
+      await this.createSession();
       return true;
     } catch (err) {
       this.emitError(err);
@@ -197,11 +197,7 @@ export class RtcPlayer extends RtcBase<RtcPlayerEvents, RtcPlayerPlugin, RtcPlay
 
   protected async performReconnect(): Promise<void> {
     this.resetSession();
-    try {
-      await this.play();
-    } catch {
-      // play() throws; let doReconnect's .catch() handle retry scheduling
-    }
+    await this.play();
   }
 
   protected onTrack(event: RTCTrackEvent): void {

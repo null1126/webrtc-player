@@ -80,6 +80,12 @@ export interface ReconnectOptions {
   interval?: number;
   /** 是否启用指数退避（默认: false） */
   exponential?: boolean;
+  /** 重试最大间隔（毫秒） */
+  maxInterval?: number;
+  /** 随机抖动比例（0~1） */
+  jitterRatio?: number;
+  /** 进入 disconnected 后的兜底重连延迟（毫秒，默认 5000） */
+  disconnectedTimeout?: number;
 }
 
 /**
