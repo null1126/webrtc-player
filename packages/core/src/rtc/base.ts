@@ -1,4 +1,5 @@
 import { EventEmitter } from '../utils/emitter';
+import { RetryController } from '../utils/retry-controller';
 import type { RtcBaseEvents, RtcBaseOptions, SignalingProvider } from './types';
 import { RtcState } from './types';
 import { PluginManager } from '../plugins/manager';
@@ -8,7 +9,7 @@ import type { AnyPlugin, HookContext } from '../plugins/types';
 /**
  * 重连状态
  */
-type ReconnectState = 'idle' | 'pending' | 'retrying' | 'max_retries';
+type ReconnectState = 'idle' | 'pending' | 'max_retries';
 
 /**
  * RTC 抽象基类
@@ -35,16 +36,10 @@ export abstract class RtcBase<
   private _reconnectEnabled = true;
   /** 重连最大次数 */
   private _reconnectMaxRetries = 5;
-  /** 重连间隔 */
-  private _reconnectInterval = 2000;
-  /** 重连指数 */
-  private _reconnectExponential = false;
-  /** 重连定时器 */
-  private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  /** 重连次数 */
-  private _reconnectCount = 0;
   /** 重连状态 */
   private _reconnectState: ReconnectState = 'idle';
+  /** 重连调度器 */
+  private _retryController: RetryController | null = null;
 
   constructor(
     options: RtcBaseOptions,
@@ -54,12 +49,28 @@ export abstract class RtcBase<
     this.url = options.url;
     this.signaling = signaling;
     this.pluginManager = pluginManager;
-    if (options.reconnect?.enabled) {
-      this._reconnectEnabled = true;
-      this._reconnectMaxRetries = options.reconnect.maxRetries ?? 5;
-      this._reconnectInterval = options.reconnect.interval ?? 2000;
-      this._reconnectExponential = options.reconnect.exponential ?? false;
-    }
+
+    const reconnectOptions = options.reconnect;
+    this._reconnectEnabled = reconnectOptions?.enabled ?? true;
+    this._reconnectMaxRetries = reconnectOptions?.maxRetries ?? 5;
+    this._retryController = new RetryController(
+      {
+        enabled: this._reconnectEnabled,
+        maxRetries: this._reconnectMaxRetries,
+        interval: reconnectOptions?.interval ?? 2000,
+        exponential: reconnectOptions?.exponential ?? false,
+      },
+      {
+        onRetry: ({ retryCount, maxRetries, interval }) => {
+          this.notifyReconnecting(retryCount, maxRetries, interval);
+          this.emit('state', RtcState.CONNECTING);
+        },
+        onExhausted: () => {
+          this._reconnectState = 'max_retries';
+          this.notifyReconnectFailed();
+        },
+      }
+    );
   }
 
   /**
@@ -222,13 +233,9 @@ export abstract class RtcBase<
    * 子类应覆盖 getDestroyPhase() 以提供正确的 phase
    */
   destroy() {
-    // 停止重连定时器
-    if (this._reconnectTimer !== null) {
-      clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = null;
-    }
+    // 停止重连调度
+    this._retryController?.dispose();
     this._reconnectState = 'idle';
-    this._reconnectCount = 0;
 
     const phase = this.getDestroyPhase();
 
@@ -294,15 +301,7 @@ export abstract class RtcBase<
     // connectionState: 'connected' 是最终确认的连接状态
     if (source === 'connection') {
       if (state === 'connected') {
-        if (this._reconnectState !== 'idle') {
-          this._reconnectState = 'idle';
-          this._reconnectCount = 0;
-          if (this._reconnectTimer !== null) {
-            clearTimeout(this._reconnectTimer);
-            this._reconnectTimer = null;
-          }
-          this.notifyReconnected();
-        }
+        this.resetReconnect(true);
         return;
       }
       if (state !== 'failed') {
@@ -318,26 +317,13 @@ export abstract class RtcBase<
 
     // iceConnectionState: 'disconnected' / 'failed' 才是真正的重连触发点
     if (state === 'connected' || state === 'completed') {
-      if (this._reconnectState !== 'idle') {
-        this._reconnectState = 'idle';
-        this._reconnectCount = 0;
-        if (this._reconnectTimer !== null) {
-          clearTimeout(this._reconnectTimer);
-          this._reconnectTimer = null;
-        }
-        this.notifyReconnected();
-      }
+      this.resetReconnect(true);
       return;
     }
 
     if (state === 'disconnected') {
-      if (this._reconnectState !== 'idle') {
-        this._reconnectState = 'idle';
-        if (this._reconnectTimer !== null) {
-          clearTimeout(this._reconnectTimer);
-          this._reconnectTimer = null;
-        }
-      }
+      // disconnected 是临时状态：取消已调度任务，但保留累计重试次数
+      this.resetReconnect(false, false);
       return;
     }
 
@@ -354,46 +340,41 @@ export abstract class RtcBase<
   }
 
   /**
-   * 获取重连间隔
-   * @param exponent 指数
-   * @returns 重连间隔
-   */
-  private getReconnectInterval(exponent: number): number {
-    if (!this._reconnectExponential) return this._reconnectInterval;
-    return this._reconnectInterval * Math.pow(2, exponent);
-  }
-
-  /**
    * 调度重连
    */
   private scheduleReconnect(): void {
-    if (this._reconnectTimer !== null) {
-      clearTimeout(this._reconnectTimer);
-    }
-    this._reconnectTimer = setTimeout(() => {
-      if (this._reconnectCount >= this._reconnectMaxRetries) {
-        this._reconnectState = 'max_retries';
-        this.notifyReconnectFailed();
-        return;
-      }
+    this._retryController?.schedule(() => this.doReconnect());
+  }
 
-      const interval = this.getReconnectInterval(this._reconnectCount);
-      this._reconnectCount++;
-      this.notifyReconnecting(interval);
-      this.emit('state', RtcState.CONNECTING);
-      this.doReconnect();
-    }, this.getReconnectInterval(this._reconnectCount));
+  /**
+   * 重置重连状态
+   * @param notifySuccess 是否通知重连成功
+   */
+  private resetReconnect(notifySuccess: boolean, resetCount = true): void {
+    const shouldNotify = notifySuccess && this._reconnectState !== 'idle';
+    this._reconnectState = 'idle';
+
+    if (resetCount) {
+      this._retryController?.reset();
+    } else {
+      this._retryController?.cancelScheduled();
+    }
+
+    if (shouldNotify) {
+      this.notifyReconnected();
+    }
   }
 
   /**
    * 执行重连
    */
-  private doReconnect(): void {
-    this._reconnectTimer = null;
-    this.performReconnect().catch(() => {
-      // performReconnect 失败，不要把状态留在 'retrying' 以免 ICE failed 时无法再次调度
+  private async doReconnect(): Promise<void> {
+    try {
+      await this.performReconnect();
+    } catch {
+      // performReconnect 失败，恢复为可再次调度状态
       this._reconnectState = 'idle';
-    });
+    }
   }
 
   /**
@@ -403,12 +384,14 @@ export abstract class RtcBase<
 
   /**
    * 通知重连中
+   * @param retryCount 当前重试次数
+   * @param maxRetries 最大重试次数
    * @param interval 重连间隔
    */
-  private notifyReconnecting(interval: number): void {
+  private notifyReconnecting(retryCount: number, maxRetries: number, interval: number): void {
     const data = {
-      retryCount: this._reconnectCount,
-      maxRetries: this._reconnectMaxRetries,
+      retryCount,
+      maxRetries,
       interval,
     };
     const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
@@ -428,11 +411,7 @@ export abstract class RtcBase<
 
     // 重置重连状态
     this._reconnectState = 'idle';
-    this._reconnectCount = 0;
-    if (this._reconnectTimer !== null) {
-      clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = null;
-    }
+    this._retryController?.reset();
   }
 
   /**
