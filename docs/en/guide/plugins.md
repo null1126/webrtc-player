@@ -453,22 +453,6 @@ onBeforeSwitchStream(url: string) {
 
 ---
 
-#### `onBeforeVideoRender()`
-
-**Type:** AsyncPipe Hook | **Invoked:** On every `requestAnimationFrame` tick
-
-**Return value:** Supports `Promise`; frame rendering waits for the promise to resolve.
-
-**Use cases:** Per-frame processing — screenshots, watermarks, real-time filters, canvas compositing.
-
-```typescript
-async onBeforeVideoRender(): Promise<void> {
-  await drawWatermark(this.canvas, this.video);
-}
-```
-
----
-
 ### Publisher-Only Hooks
 
 #### `onBeforeGetUserMedia(constraints)`
@@ -816,5 +800,5 @@ player.use(createPerformancePlugin({ onStats: (s) => console.log(s) }));
 - **Priority**: Higher-priority plugins execute first. Set `priority: 100` to ensure your plugin runs before others.
 - **Unique names**: Duplicate plugin names are rejected on registration.
 - **Lifecycle cleanup**: Use `onPreDestroy` to cancel timers, remove listeners, and release resources.
-- **Async hooks**: `onBeforeVideoRender`, `onBeforeAttachStream`, and `onBeforeAttachTrack` support `Promise`. All other hooks are synchronous.
+- **Async hooks**: `onBeforeAttachStream` and `onBeforeAttachTrack` support `Promise`. All other hooks are synchronous.
 - **Return value semantics**: In Pipe Hooks, returning `undefined` means "don't intervene"; returning a concrete value means "replace the input."

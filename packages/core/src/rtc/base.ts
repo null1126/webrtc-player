@@ -6,6 +6,11 @@ import { PluginPhase } from '../plugins/types';
 import type { AnyPlugin, HookContext } from '../plugins/types';
 
 /**
+ * 重连状态
+ */
+type ReconnectState = 'idle' | 'pending' | 'retrying' | 'max_retries';
+
+/**
  * RTC 抽象基类
  * 提供公共的连接管理、ICE 协商、事件发射能力
  *
@@ -22,8 +27,24 @@ export abstract class RtcBase<
   protected emitter = new EventEmitter<TEvents>();
   protected url: string;
   protected signaling: SignalingProvider;
+
   /** 插件管理器，由子类管理 */
   protected pluginManager: PluginManager<TPlugin, TInstance>;
+
+  /** 重连相关配置 */
+  private _reconnectEnabled = true;
+  /** 重连最大次数 */
+  private _reconnectMaxRetries = 5;
+  /** 重连间隔 */
+  private _reconnectInterval = 2000;
+  /** 重连指数 */
+  private _reconnectExponential = false;
+  /** 重连定时器 */
+  private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 重连次数 */
+  private _reconnectCount = 0;
+  /** 重连状态 */
+  private _reconnectState: ReconnectState = 'idle';
 
   constructor(
     options: RtcBaseOptions,
@@ -33,6 +54,12 @@ export abstract class RtcBase<
     this.url = options.url;
     this.signaling = signaling;
     this.pluginManager = pluginManager;
+    if (options.reconnect?.enabled) {
+      this._reconnectEnabled = true;
+      this._reconnectMaxRetries = options.reconnect.maxRetries ?? 5;
+      this._reconnectInterval = options.reconnect.interval ?? 2000;
+      this._reconnectExponential = options.reconnect.exponential ?? false;
+    }
   }
 
   /**
@@ -102,32 +129,61 @@ export abstract class RtcBase<
    * @param pc RTCPeerConnection 实例
    */
   protected bindPcEvents(pc: RTCPeerConnection): void {
-    const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
-
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       this.emit('state', this.mapConnectionState(state));
+      if (this._reconnectEnabled) {
+        this.handleConnectionFailure(pc.connectionState, 'connection');
+      }
+      this.onConnectionStateChanged(pc.connectionState);
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.emit('icecandidate', event.candidate);
+        this.onIceCandidateReceived(event.candidate);
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       this.emit('iceconnectionstate', pc.iceConnectionState);
+      if (this._reconnectEnabled) {
+        this.handleConnectionFailure(pc.iceConnectionState, 'ice');
+      }
+      this.onIceConnectionStateChanged(pc.iceConnectionState);
     };
 
     pc.onicegatheringstatechange = () => {
       const state = pc.iceGatheringState;
       this.emit('icegatheringstate', state);
-      // Hook: onIceGatheringStateChange — 只在子类未通过 bindSignalingHooks 重写时生效
+      // Hook: onIceGatheringStateChange — 只在子类未通过扩展点重写时生效
+      const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
       this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+      this.onIceGatheringStateChanged(state);
     };
 
     pc.ontrack = (event) => this.onTrack(event);
   }
+
+  /**
+   * 连接状态变更扩展点
+   */
+  protected onConnectionStateChanged(_state: RTCPeerConnectionState): void {}
+
+  /**
+   * ICE 候选收集完成扩展点
+   */
+  protected onIceCandidateReceived(_candidate: RTCIceCandidate): void {}
+
+  /**
+   * ICE 连接状态变更扩展点
+   */
+  protected onIceConnectionStateChanged(_state: RTCIceConnectionState): void {}
+
+  /**
+   * ICE 收集状态变更扩展点
+   */
+  protected onIceGatheringStateChanged(_state: RTCIceGatheringState): void {}
 
   /**
    * 子类实现：处理远端轨道事件
@@ -166,6 +222,14 @@ export abstract class RtcBase<
    * 子类应覆盖 getDestroyPhase() 以提供正确的 phase
    */
   destroy() {
+    // 停止重连定时器
+    if (this._reconnectTimer !== null) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    this._reconnectState = 'idle';
+    this._reconnectCount = 0;
+
     const phase = this.getDestroyPhase();
 
     // Phase: preDestroy — 所有插件在此清理 RAF、定时器等资源
@@ -216,5 +280,166 @@ export abstract class RtcBase<
       closed: RtcState.CLOSED,
     };
     return map[state] ?? RtcState.FAILED;
+  }
+
+  /**
+   * 处理连接失败，触发重连流程
+   * @param state 连接状态（来自 connectionState 或 iceConnectionState）
+   * @param source 来源：'connection' | 'ice'
+   */
+  private handleConnectionFailure(
+    state: RTCPeerConnectionState | RTCIceConnectionState,
+    source: 'connection' | 'ice'
+  ): void {
+    // connectionState: 'connected' 是最终确认的连接状态
+    if (source === 'connection') {
+      if (state === 'connected') {
+        if (this._reconnectState !== 'idle') {
+          this._reconnectState = 'idle';
+          this._reconnectCount = 0;
+          if (this._reconnectTimer !== null) {
+            clearTimeout(this._reconnectTimer);
+            this._reconnectTimer = null;
+          }
+          this.notifyReconnected();
+        }
+        return;
+      }
+      if (state !== 'failed') {
+        return;
+      }
+      if (this._reconnectState !== 'idle') {
+        return;
+      }
+      this._reconnectState = 'pending';
+      this.scheduleReconnect();
+      return;
+    }
+
+    // iceConnectionState: 'disconnected' / 'failed' 才是真正的重连触发点
+    if (state === 'connected' || state === 'completed') {
+      if (this._reconnectState !== 'idle') {
+        this._reconnectState = 'idle';
+        this._reconnectCount = 0;
+        if (this._reconnectTimer !== null) {
+          clearTimeout(this._reconnectTimer);
+          this._reconnectTimer = null;
+        }
+        this.notifyReconnected();
+      }
+      return;
+    }
+
+    if (state === 'disconnected') {
+      if (this._reconnectState !== 'idle') {
+        this._reconnectState = 'idle';
+        if (this._reconnectTimer !== null) {
+          clearTimeout(this._reconnectTimer);
+          this._reconnectTimer = null;
+        }
+      }
+      return;
+    }
+
+    if (state !== 'failed') {
+      return;
+    }
+
+    if (this._reconnectState !== 'idle') {
+      return;
+    }
+
+    this._reconnectState = 'pending';
+    this.scheduleReconnect();
+  }
+
+  /**
+   * 获取重连间隔
+   * @param exponent 指数
+   * @returns 重连间隔
+   */
+  private getReconnectInterval(exponent: number): number {
+    if (!this._reconnectExponential) return this._reconnectInterval;
+    return this._reconnectInterval * Math.pow(2, exponent);
+  }
+
+  /**
+   * 调度重连
+   */
+  private scheduleReconnect(): void {
+    if (this._reconnectTimer !== null) {
+      clearTimeout(this._reconnectTimer);
+    }
+    this._reconnectTimer = setTimeout(() => {
+      if (this._reconnectCount >= this._reconnectMaxRetries) {
+        this._reconnectState = 'max_retries';
+        this.notifyReconnectFailed();
+        return;
+      }
+
+      const interval = this.getReconnectInterval(this._reconnectCount);
+      this._reconnectCount++;
+      this.notifyReconnecting(interval);
+      this.emit('state', RtcState.CONNECTING);
+      this.doReconnect();
+    }, this.getReconnectInterval(this._reconnectCount));
+  }
+
+  /**
+   * 执行重连
+   */
+  private doReconnect(): void {
+    this._reconnectTimer = null;
+    this.performReconnect().catch(() => {
+      // performReconnect 失败，不要把状态留在 'retrying' 以免 ICE failed 时无法再次调度
+      this._reconnectState = 'idle';
+    });
+  }
+
+  /**
+   * 子类实现实际重连操作
+   */
+  protected abstract performReconnect(): Promise<void>;
+
+  /**
+   * 通知重连中
+   * @param interval 重连间隔
+   */
+  private notifyReconnecting(interval: number): void {
+    const data = {
+      retryCount: this._reconnectCount,
+      maxRetries: this._reconnectMaxRetries,
+      interval,
+    };
+    const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
+    this.pluginManager.callHook(ctx, 'onReconnecting', data);
+    this.emit('reconnecting', data);
+  }
+
+  /**
+   * 通知重连失败
+   */
+  private notifyReconnectFailed(): void {
+    const data = { maxRetries: this._reconnectMaxRetries };
+    const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
+    this.pluginManager.callHook(ctx, 'onReconnectFailed', data);
+    this.emit('reconnectfailed', data);
+    this.emit('state', RtcState.FAILED);
+
+    // 重置重连状态
+    this._reconnectState = 'idle';
+    this._reconnectCount = 0;
+    if (this._reconnectTimer !== null) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+  }
+
+  /**
+   * 通知重连成功
+   */
+  private notifyReconnected(): void {
+    const ctx = this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED);
+    this.pluginManager.callHook(ctx, 'onReconnected');
   }
 }

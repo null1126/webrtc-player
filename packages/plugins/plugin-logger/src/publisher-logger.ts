@@ -64,6 +64,18 @@ export function createPublisherLoggerPlugin(
         );
       };
 
+      interceptors.onReconnecting = (ctx, data) => {
+        emit('info', `[重连] 重连中 (${data.retryCount}/${data.maxRetries})`, ctx.phase);
+      };
+
+      interceptors.onReconnectFailed = (ctx, data) => {
+        emit('error', `[重连] 重连失败 (${data.maxRetries})`, ctx.phase);
+      };
+
+      interceptors.onReconnected = (ctx) => {
+        emit('info', `[重连] 重连成功`, ctx.phase);
+      };
+
       interceptors.onError = (ctx, data) => {
         const msg = data.error instanceof Error ? data.error.message : String(data.error);
         emit('error', `[错误] ${msg}`, ctx.phase);

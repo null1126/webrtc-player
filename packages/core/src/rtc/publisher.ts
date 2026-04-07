@@ -20,9 +20,11 @@ export class RtcPublisher extends RtcBase<
   RtcPublisherPluginInstance
 > {
   private _source: MediaSource;
-  private video?: HTMLVideoElement;
+  private target?: HTMLVideoElement | HTMLAudioElement;
   private localStream: MediaStream | null = null;
   private activeTransceivers: RTCRtpTransceiver[] = [];
+  /** 保存 start() 中的 ctx，供扩展点方法使用 */
+  private _startCtx: HookContext<RtcPublisherPluginInstance> | null = null;
 
   constructor(options: RtcPublisherOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
@@ -30,7 +32,7 @@ export class RtcPublisher extends RtcBase<
     super(options, signaling, pluginManager);
     pluginManager.setInstance(this);
     this._source = options.source;
-    this.video = options.video;
+    this.target = options.target;
     const plugins = (options.plugins ?? []) as RtcPublisherPlugin[];
     for (const plugin of plugins) {
       pluginManager.use(plugin);
@@ -77,7 +79,7 @@ export class RtcPublisher extends RtcBase<
         'onPeerConnectionCreated',
         this.pc!
       );
-      this.bindCommonHooks(ctx);
+      this._startCtx = ctx;
 
       await this.acquireSource(ctx);
       await this.attachStream(ctx);
@@ -227,54 +229,58 @@ export class RtcPublisher extends RtcBase<
     this.activeTransceivers = [];
   }
 
+  protected async performReconnect(): Promise<void> {
+    this.resetSession();
+    this.releaseSource();
+    try {
+      await this.start();
+    } catch {
+      // start() throws on failure; doReconnect's .catch() handles retry scheduling
+    }
+  }
+
   /**
    * 处理轨道事件
    */
   protected onTrack(event: RTCTrackEvent): void {
     const ctx = this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED);
     const stream = event.streams[0];
-    const track = event.track;
-    this.pluginManager.callHook(ctx, 'onTrack', track, stream, event);
+    this.pluginManager.callHook(ctx, 'onTrack', stream, event);
     this.emit('track', { stream, event });
   }
 
-  /**
-   * 绑定公共钩子（连接状态、ICE 候选、ICE 连接状态、ICE 收集状态）
-   */
-  private bindCommonHooks(ctx: HookContext<RtcPublisherPluginInstance>): void {
-    const prevState = { state: this.connectionState };
-    const prevIceGathering = { state: this.pc!.iceGatheringState };
+  // ---------- 扩展点：注入 plugin hook ----------
 
-    this.pc!.onconnectionstatechange = () => {
-      const next = { state: this.pc!.connectionState, previousState: prevState.state };
-      prevState.state = next.state;
-      this.emit('state', this.mapConnectionState(next.state));
-      this.pluginManager.callHook(ctx, 'onConnectionStateChange', next);
-    };
+  private _prevConnectionState: RTCPeerConnectionState = 'new';
+  private _prevIceGatheringState: RTCIceGatheringState = 'new';
 
-    this.pc!.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.emit('icecandidate', event.candidate);
-        this.pluginManager.callHook(ctx, 'onIceCandidate', {
-          candidate: event.candidate,
-          isRemote: false,
-        });
-      }
-    };
+  protected override onConnectionStateChanged(state: RTCPeerConnectionState): void {
+    const ctx = this._startCtx;
+    if (!ctx) return;
+    const prev = this._prevConnectionState;
+    this._prevConnectionState = state;
+    this.pluginManager.callHook(ctx, 'onConnectionStateChange', { state, previousState: prev });
+  }
 
-    this.pc!.oniceconnectionstatechange = () => {
-      this.emit('iceconnectionstate', this.pc!.iceConnectionState);
-      this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', this.pc!.iceConnectionState);
-    };
+  protected override onIceCandidateReceived(candidate: RTCIceCandidate): void {
+    const ctx = this._startCtx;
+    if (!ctx) return;
+    this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate, isRemote: false });
+  }
 
-    this.pc!.onicegatheringstatechange = () => {
-      const state = this.pc!.iceGatheringState;
-      if (prevIceGathering.state !== state) {
-        prevIceGathering.state = state;
-        this.emit('icegatheringstate', state);
-        this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
-      }
-    };
+  protected override onIceConnectionStateChanged(state: RTCIceConnectionState): void {
+    const ctx = this._startCtx;
+    if (!ctx) return;
+    this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', state);
+  }
+
+  protected override onIceGatheringStateChanged(state: RTCIceGatheringState): void {
+    const ctx = this._startCtx;
+    if (!ctx) return;
+    if (this._prevIceGatheringState !== state) {
+      this._prevIceGatheringState = state;
+      this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+    }
   }
 
   /**
@@ -368,15 +374,15 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 将 localStream 绑定到预览 video 元素
+   * 将 localStream 绑定到预览 target 元素
    */
   private bindVideo(): void {
-    if (!this.video || !this.localStream) return;
+    if (!this.target || !this.localStream) return;
 
-    this.video.srcObject = this.localStream;
-    this.video.muted = true;
-    this.video.onloadedmetadata = () => {
-      this.video?.play();
+    this.target.srcObject = this.localStream;
+    this.target.muted = true;
+    this.target.onloadedmetadata = () => {
+      this.target?.play();
     };
   }
 
@@ -485,8 +491,8 @@ export class RtcPublisher extends RtcBase<
 
     if (!stream) {
       this.localStream = null;
-      if (this.video) {
-        this.video.srcObject = null;
+      if (this.target) {
+        this.target.srcObject = null;
       }
     }
   }

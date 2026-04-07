@@ -465,22 +465,6 @@ onBeforeSwitchStream(url: string) {
 
 ---
 
-#### `onBeforeVideoRender()`
-
-**类型：** AsyncPipe Hook | **调用时机：** 每帧 `requestAnimationFrame` 触发时
-
-**返回值：** 支持 `Promise`，异步处理完成后才开始帧渲染。
-
-**用途：** 视频帧级处理，如截图、水印叠加、实时滤镜等。
-
-```typescript
-onBeforeVideoRender(): Promise<void> {
-  return drawWatermark(this.canvas, this.video);
-}
-```
-
----
-
 ### 推流器专用 Hook
 
 #### `onBeforeGetUserMedia(constraints)`
@@ -828,5 +812,5 @@ player.use(createPerformancePlugin({ onStats: (s) => console.log(s) }));
 - **优先级**：高优先级插件先执行。如需确保插件在其他插件之前运行，可设置 `priority: 100`。
 - **唯一命名**：同名的插件只能注册一次，重复注册会被拒绝。
 - **生命周期**：建议在 `onPreDestroy` 中清理定时器、事件监听器等资源。
-- **异步 Hook**：`onBeforeVideoRender` 和 `onBeforeAttachStream`/`onBeforeAttachTrack` 支持 `Promise`，其他 Hook 均为同步。
+- **异步 Hook**：`onBeforeAttachStream`/`onBeforeAttachTrack` 支持 `Promise`，其他 Hook 均为同步。
 - **返回值语义**：Pipe Hook 中，返回 `undefined` 表示"不干预"，返回具体值才表示"替换"。

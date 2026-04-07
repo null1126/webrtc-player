@@ -114,8 +114,6 @@ await player.play();
 
 ### FPS
 
-FPS 通过在 `onBeforeVideoRender` hook 中计数视频帧来统计，精度依赖于浏览器刷新率。
-
 | 帧率范围 | 含义                             |
 | -------- | -------------------------------- |
 | `≈ 60`   | 流畅（通常对应 60Hz 显示器）     |
@@ -147,7 +145,7 @@ FPS 通过在 `onBeforeVideoRender` hook 中计数视频帧来统计，精度依
 
 ## 局限性
 
-- **仅支持拉流端**：该插件目前仅拦截 `RtcPlayer` 的帧渲染，不支持 `RtcPublisher`。
+- **仅支持拉流端**：该插件目前仅支持 `RtcPlayer`，不支持 `RtcPublisher`。
 - **统计延迟**：`bytesSent` / `bytesReceived` 等累计值需要两次采样才能计算出码率，初次上报的 `bitrateSent` / `bitrateReceived` 可能为 0。
 - **精度依赖**：`jitter` 与 `rtt` 的精度受制于浏览器的 RTCP 反馈频率，初期连接可能为 `null`。
 

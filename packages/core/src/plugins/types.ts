@@ -61,7 +61,6 @@ export const PluginPhase = {
   PLAYER_FRAME: 'player:frame',
   PLAYER_BEFORE_SWITCH_STREAM: 'player:beforeSwitchStream',
   PLAYER_AFTER_SWITCH_STREAM: 'player:afterSwitchStream',
-  PLAYER_BEFORE_VIDEO_RENDER: 'player:beforeVideoRender',
   PLAYER_DESTROY: 'player:destroy',
 
   // === 推流端阶段 ===
@@ -95,34 +94,6 @@ export interface HookContext<S = unknown> {
   instance: S;
   /** 调用的阶段标识 */
   phase: PluginPhaseValue;
-}
-
-/**
- * 视频帧数据（用于 onFrame 钩子）
- */
-export interface VideoFrameData {
-  /** 当前视频帧的 DOM 时间戳（performance.now()） */
-  timestamp: number;
-  /** 视频轨道 */
-  track: MediaStreamTrack;
-  /** 所属 MediaStream */
-  stream: MediaStream;
-}
-
-/**
- * 视频帧处理结果（用于 onBeforeVideoRender 钩子）
- */
-export interface ProcessedVideoFrame {
-  /**
-   * 处理后的视频帧 ImageBitmap / HTMLCanvasElement / HTMLVideoElement。
-   * 如果插件返回 undefined，则使用原始视频帧。
-   */
-  frame: ImageBitmap | HTMLCanvasElement | HTMLVideoElement;
-  /**
-   * 是否跳过默认渲染（返回 true 时宿主将不执行 video.drawImage，
-   * 插件需自行完成渲染）
-   */
-  skipRender?: boolean;
 }
 
 // ============================================================
@@ -185,6 +156,15 @@ export interface RtcPluginCommonHooks<S = unknown> {
   onPreDestroy?(ctx: HookContext<S>): void;
   /** 销毁后触发，所有插件的 onPreDestroy 已执行完毕，pc 已 close */
   onPostDestroy?(ctx: HookContext<S>): void;
+  /** 重连尝试时触发 */
+  onReconnecting?(
+    ctx: HookContext<S>,
+    data: { retryCount: number; maxRetries: number; interval: number }
+  ): void;
+  /** 重连失败（已达最大次数）时触发 */
+  onReconnectFailed?(ctx: HookContext<S>, data: { maxRetries: number }): void;
+  /** 重连成功后触发 */
+  onReconnected?(ctx: HookContext<S>): void;
 }
 
 // ============================================================
@@ -219,17 +199,16 @@ export interface RtcPlayerPluginHooks {
     answer: RTCSessionDescriptionInit
   ): void;
   /**
-   * 收到远端轨道时触发（早于 video.srcObject 赋值）。
+   * 收到远端轨道时触发（早于 target.srcObject 赋值）。
    * 插件可在此对轨道进行预处理。
    */
   onTrack?(
     ctx: HookContext<RtcPlayerPluginInstance>,
-    track: MediaStreamTrack,
     stream: MediaStream,
     event: RTCTrackEvent
   ): void;
   /**
-   * 在 video.srcObject 赋值之前触发。
+   * 在 target.srcObject 赋值之前触发。
    * 插件可在此替换要播放的 MediaStream。
    * 返回修改后的 MediaStream，或 void 表示使用原始 stream。
    */
@@ -246,20 +225,6 @@ export interface RtcPlayerPluginHooks {
   onBeforeSwitchStream?(ctx: HookContext<RtcPlayerPluginInstance>, url: string): string | void;
   /** 切换流完成后触发 */
   onAfterSwitchStream?(ctx: HookContext<RtcPlayerPluginInstance>, url: string): void;
-  /**
-   * 在每一帧渲染到 video 元素之前触发（通过 requestAnimationFrame 驱动）。
-   * 适合实现拉流端滤镜、画框叠加等。
-   *
-   * @param ctx   插件上下文
-   * @param frame 当前视频帧（HTMLVideoElement，可用于 drawImage）
-   * @param data  帧元数据
-   * @returns 处理结果，如果返回 undefined 则使用原始帧进行渲染
-   */
-  onBeforeVideoRender?(
-    ctx: HookContext<RtcPlayerPluginInstance>,
-    frame: HTMLVideoElement,
-    data: VideoFrameData
-  ): ProcessedVideoFrame | void;
 }
 
 /**
@@ -278,8 +243,8 @@ export interface RtcPlayerPluginInstance {
   readonly connectionState: RTCPeerConnectionState;
   /** 当前拉流的 URL */
   getStreamUrl(): string;
-  /** 获取已绑定的 video 元素 */
-  getVideoElement(): HTMLVideoElement | undefined;
+  /** 获取已绑定的目标元素 */
+  getTargetElement(): HTMLVideoElement | HTMLAudioElement | undefined;
   /** 获取当前远端 MediaStream（播放后可用） */
   getCurrentStream(): MediaStream | null;
   /** 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API */
@@ -374,7 +339,6 @@ export interface RtcPublisherPluginHooks {
   /** 收到远端轨道时触发（适用于回声/对讲场景） */
   onTrack?(
     ctx: HookContext<RtcPublisherPluginInstance>,
-    track: MediaStreamTrack,
     stream: MediaStream,
     event: RTCTrackEvent
   ): void;
@@ -446,7 +410,10 @@ export type RtcPlayerNotifyHook =
   | 'onAfterSwitchStream'
   | 'onTrackAttached'
   | 'onPreDestroy'
-  | 'onPostDestroy';
+  | 'onPostDestroy'
+  | 'onReconnecting'
+  | 'onReconnectFailed'
+  | 'onReconnected';
 
 export type RtcPublisherNotifyHook =
   | 'onPeerConnectionCreated'
@@ -465,7 +432,10 @@ export type RtcPublisherNotifyHook =
   | 'onTrack'
   | 'onTrackAttached'
   | 'onPreDestroy'
-  | 'onPostDestroy';
+  | 'onPostDestroy'
+  | 'onReconnecting'
+  | 'onReconnectFailed'
+  | 'onReconnected';
 
 /**
  * 同步管道钩子 — 通过 pipeHook 调用，可修改初始值
@@ -487,24 +457,14 @@ export type RtcPublisherPipeHook =
   | 'onBeforeSourceChange'
   | 'onError';
 
-/**
- * 异步管道钩子 — 通过 asyncPipeHook 调用，支持 Promise 返回值
- */
-export type RtcPlayerAsyncPipeHook = 'onBeforeVideoRender';
-
 export type RtcPublisherAsyncPipeHook = 'onBeforeAttachStream' | 'onBeforeAttachTrack';
 
 /** 拉流插件所有同步通知钩子 */
 export type RtcPlayerNotifyHookName = RtcPlayerNotifyHook;
 /** 拉流插件所有同步管道钩子 */
 export type RtcPlayerPipeHookName = RtcPlayerPipeHook;
-/** 拉流插件所有异步管道钩子 */
-export type RtcPlayerAsyncPipeHookName = RtcPlayerAsyncPipeHook;
 /** 拉流插件所有钩子名称 */
-export type RtcPlayerHookName =
-  | RtcPlayerNotifyHookName
-  | RtcPlayerPipeHookName
-  | RtcPlayerAsyncPipeHookName;
+export type RtcPlayerHookName = RtcPlayerNotifyHookName | RtcPlayerPipeHookName;
 
 /** 推流插件所有同步通知钩子 */
 export type RtcPublisherNotifyHookName = RtcPublisherNotifyHook;

@@ -45,7 +45,14 @@ export function StreamPlayer({
     const player = new RtcPlayer({
       url: streamUrl,
       api: apiUrl,
-      video: videoRef.current ?? undefined,
+      target: videoRef.current ?? undefined,
+      media: 'all',
+      reconnect: {
+        enabled: true,
+        exponential: true,
+        maxRetries: 2,
+        interval: 1000,
+      },
       plugins: [performancePlugin, loggerPlugin],
     });
 
@@ -55,11 +62,7 @@ export function StreamPlayer({
 
     player.on('track', ({ stream }) => setRemoteStream(stream));
 
-    try {
-      await player.play();
-    } catch (err) {
-      console.error(err);
-    }
+    await player.play();
   }
 
   function handleStop() {

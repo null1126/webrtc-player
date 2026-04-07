@@ -35,8 +35,10 @@ export interface NetworkStats {
  * 性能数据汇总
  */
 export interface PerformanceData {
-  /** 拉流端 URL */
-  url: string;
+  /** 监控来源：拉流端(player) 或 推流端(publisher) */
+  role: 'player' | 'publisher';
+  /** 拉流端 URL（仅 player 可用） */
+  url?: string;
   /** 报告时间戳（performance.now()） */
   timestamp: number;
   fps?: FpsStats;

@@ -145,9 +145,6 @@ interface RtcPlayerPluginHooks {
 
   /** 切换流后 */
   onAfterSwitchStream?(url: string): void;
-
-  /** 每帧渲染前（AsyncPipe Hook） */
-  onBeforeVideoRender?(): void | Promise<void>;
 }
 ```
 
@@ -258,7 +255,6 @@ export const PluginPhase = {
   PLAYER_FRAME: 'player:frame',
   PLAYER_BEFORE_SWITCH_STREAM: 'player:beforeSwitchStream',
   PLAYER_AFTER_SWITCH_STREAM: 'player:afterSwitchStream',
-  PLAYER_BEFORE_VIDEO_RENDER: 'player:beforeVideoRender',
   PLAYER_DESTROY: 'player:destroy',
 
   // Publisher
@@ -284,13 +280,12 @@ export const PluginPhase = {
 
 ## Hook 类型
 
-插件中的每个 Hook 按调用语义分为三类：
+插件中的每个 Hook 按调用语义分为两类：
 
-| 类型                     | 含义       | 插件行为                                                    |
-| ------------------------ | ---------- | ----------------------------------------------------------- |
-| `RtcPlayerNotifyHook`    | 通知型     | 函数返回值被忽略；异常不传播                                |
-| `RtcPlayerPipeHook`      | 同步管道型 | 首个返回值决定后续插件输入；返回 `undefined` 继续用上一个值 |
-| `RtcPlayerAsyncPipeHook` | 异步管道型 | 支持 `Promise`，用法同 Pipe Hook                            |
+| 类型                  | 含义       | 插件行为                                                    |
+| --------------------- | ---------- | ----------------------------------------------------------- |
+| `RtcPlayerNotifyHook` | 通知型     | 函数返回值被忽略；异常不传播                                |
+| `RtcPlayerPipeHook`   | 同步管道型 | 首个返回值决定后续插件输入；返回 `undefined` 继续用上一个值 |
 
 ```typescript
 type RtcPlayerNotifyHook =
@@ -314,6 +309,4 @@ type RtcPlayerPipeHook =
   | 'onBeforeVideoPlay'
   | 'onBeforeSwitchStream'
   | 'onError';
-
-type RtcPlayerAsyncPipeHook = 'onBeforeVideoRender';
 ```

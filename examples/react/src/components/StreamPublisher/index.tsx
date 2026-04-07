@@ -66,7 +66,7 @@ export function StreamPublisher({
       url: streamUrl,
       api: apiUrl,
       source,
-      video: videoRef.current ?? undefined,
+      target: videoRef.current ?? undefined,
       plugins: [loggerPlugin],
     });
 

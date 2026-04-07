@@ -145,9 +145,6 @@ interface RtcPlayerPluginHooks {
 
   /** After stream switch */
   onAfterSwitchStream?(url: string): void;
-
-  /** Before each frame render (AsyncPipe Hook) */
-  onBeforeVideoRender?(): void | Promise<void>;
 }
 ```
 
@@ -258,7 +255,6 @@ export const PluginPhase = {
   PLAYER_FRAME: 'player:frame',
   PLAYER_BEFORE_SWITCH_STREAM: 'player:beforeSwitchStream',
   PLAYER_AFTER_SWITCH_STREAM: 'player:afterSwitchStream',
-  PLAYER_BEFORE_VIDEO_RENDER: 'player:beforeVideoRender',
   PLAYER_DESTROY: 'player:destroy',
 
   // Publisher
@@ -284,13 +280,12 @@ export const PluginPhase = {
 
 ## Hook Types
 
-Each hook falls into one of three call semantics:
+Each hook falls into one of two call semantics:
 
-| Type                     | Meaning         | Plugin behavior                                                  |
-| ------------------------ | --------------- | ---------------------------------------------------------------- |
-| `RtcPlayerNotifyHook`    | Fire-and-forget | Return value ignored; errors do not propagate                    |
-| `RtcPlayerPipeHook`      | Sync pipeline   | First non-undefined return value becomes the next plugin's input |
-| `RtcPlayerAsyncPipeHook` | Async pipeline  | Same as Pipe Hook but supports `Promise` returns                 |
+| Type                  | Meaning         | Plugin behavior                                                  |
+| --------------------- | --------------- | ---------------------------------------------------------------- |
+| `RtcPlayerNotifyHook` | Fire-and-forget | Return value ignored; errors do not propagate                    |
+| `RtcPlayerPipeHook`   | Sync pipeline   | First non-undefined return value becomes the next plugin's input |
 
 ```typescript
 type RtcPlayerNotifyHook =
@@ -314,6 +309,4 @@ type RtcPlayerPipeHook =
   | 'onBeforeVideoPlay'
   | 'onBeforeSwitchStream'
   | 'onError';
-
-type RtcPlayerAsyncPipeHook = 'onBeforeVideoRender';
 ```

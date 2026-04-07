@@ -1,39 +1,59 @@
-import type { RtcPlayerPlugin, RtcPlayerPluginInstance } from '@webrtc-player/core/plugins/types';
+import type {
+  RtcPlayerPlugin,
+  RtcPlayerPluginInstance,
+  RtcPublisherPlugin,
+  RtcPublisherPluginInstance,
+} from '@webrtc-player/core/plugins/types';
 import type { FpsStats, NetworkStats, PerformanceData, PerformancePluginOptions } from './types';
 
+type PerfInstance = RtcPlayerPluginInstance | RtcPublisherPluginInstance;
+
+const isPlayerInstance = (instance: PerfInstance): instance is RtcPlayerPluginInstance => {
+  return 'getStreamUrl' in instance;
+};
+
+const getRole = (instance: PerfInstance): PerformanceData['role'] => {
+  return isPlayerInstance(instance) ? 'player' : 'publisher';
+};
+
 /**
- * 创建性能监控插件
+ * 创建性能监控插件（同时支持拉流与推流）
  *
  * @param options  配置选项
  * @param onReport 性能数据回调，插件会定期调用它
- * @returns RtcPlayerPlugin 实例，可直接传入 player.use()
- *
- * @example
- * ```ts
- * const perfPlugin = createPerformancePlugin(
- *   { interval: 1000 },
- *   (data) => {
- *     console.log('fps:', data.fps?.fps);
- *     console.log('bitrate:', data.network?.bitrateReceived);
- *   }
- * );
- *
- * const player = new RtcPlayer({ url: '...' });
- * player.use(perfPlugin);
- * ```
  */
 export function createPerformancePlugin(
   options: PerformancePluginOptions = {},
   onReport: (data: PerformanceData) => void
-): RtcPlayerPlugin {
+): RtcPlayerPlugin & RtcPublisherPlugin {
   const { interval = 1000 } = options;
 
+  let hostInstance: PerfInstance | null = null;
   let statsTimer: ReturnType<typeof setInterval> | null = null;
+  let rafId: number | null = null;
+
   let frameCount = 0;
   let lastReportTime = 0;
   let lastBytesSent = 0;
   let lastBytesReceived = 0;
   let lastTimestamp = 0;
+
+  const startFpsTracking = () => {
+    if (rafId !== null) return;
+    const tick = () => {
+      frameCount += 1;
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const stopFpsTracking = () => {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    frameCount = 0;
+  };
 
   const flushFps = (): FpsStats => {
     const now = performance.now();
@@ -45,9 +65,13 @@ export function createPerformancePlugin(
     return result;
   };
 
-  const collectNetworkStats = async (
-    instance: RtcPlayerPluginInstance
-  ): Promise<NetworkStats | undefined> => {
+  const resetNetworkDelta = () => {
+    lastBytesSent = 0;
+    lastBytesReceived = 0;
+    lastTimestamp = performance.now();
+  };
+
+  const collectNetworkStats = async (instance: PerfInstance): Promise<NetworkStats | undefined> => {
     const pc = instance.getPeerConnection();
     if (!pc) return undefined;
 
@@ -72,24 +96,32 @@ export function createPerformancePlugin(
         packetsSent = Number(report.packetsSent ?? 0);
         packetsLostSent = Number(report.packetsLost ?? 0);
       }
+
       if (report.type === 'inbound-rtp' && report.kind === 'video') {
         bytesReceived = Number(report.bytesReceived ?? 0);
         packetsReceived = Number(report.packetsReceived ?? 0);
         packetsLostReceived = Number(report.packetsLost ?? 0);
-        jitter = report.jitter ? report.jitter * 1000 : null;
-        connectionState = report.state as RTCIceConnectionState;
+        jitter = report.jitter != null ? Math.round(report.jitter * 1000 * 100) / 100 : null;
       }
+
       if (report.type === 'candidate-pair' && report.state === 'succeeded') {
         const currentRtt = report.currentRoundTripTime;
         rtt = currentRtt != null ? Math.round(currentRtt * 1000 * 100) / 100 : null;
       }
     });
 
+    const pcIceState = pc.iceConnectionState;
+    connectionState = pcIceState ?? connectionState;
+
     const timeDelta = (now - lastTimestamp) / 1000;
     if (timeDelta > 0) {
-      bitrateSent = Math.round(((bytesSent - lastBytesSent) * 8) / timeDelta);
-      bitrateReceived = Math.round(((bytesReceived - lastBytesReceived) * 8) / timeDelta);
+      bitrateSent = Math.max(0, Math.round(((bytesSent - lastBytesSent) * 8) / timeDelta));
+      bitrateReceived = Math.max(
+        0,
+        Math.round(((bytesReceived - lastBytesReceived) * 8) / timeDelta)
+      );
     }
+
     lastBytesSent = bytesSent;
     lastBytesReceived = bytesReceived;
     lastTimestamp = now;
@@ -112,35 +144,66 @@ export function createPerformancePlugin(
     };
   };
 
-  const plugin: RtcPlayerPlugin = {
+  const stopReporting = () => {
+    if (statsTimer !== null) {
+      clearInterval(statsTimer);
+      statsTimer = null;
+    }
+    stopFpsTracking();
+  };
+
+  const startReporting = () => {
+    if (!hostInstance || statsTimer !== null) return;
+
+    frameCount = 0;
+    lastReportTime = performance.now();
+    resetNetworkDelta();
+    startFpsTracking();
+
+    statsTimer = setInterval(async () => {
+      if (!hostInstance) return;
+
+      const fps = flushFps();
+      const network = await collectNetworkStats(hostInstance);
+      const role = getRole(hostInstance);
+
+      onReport({
+        role,
+        url: isPlayerInstance(hostInstance) ? hostInstance.getStreamUrl() : undefined,
+        timestamp: performance.now(),
+        fps,
+        network,
+      });
+    }, interval);
+  };
+
+  const plugin: RtcPlayerPlugin & RtcPublisherPlugin = {
     name: 'performance',
 
     install(instance) {
-      lastReportTime = performance.now();
-      lastTimestamp = performance.now();
-
-      statsTimer = setInterval(async () => {
-        const fps = flushFps();
-        const network = await collectNetworkStats(instance);
-
-        onReport({
-          url: instance.getStreamUrl(),
-          timestamp: performance.now(),
-          fps,
-          network,
-        });
-      }, interval);
+      hostInstance = instance;
     },
 
-    onBeforeVideoRender() {
-      frameCount++;
+    onPlaying() {
+      startReporting();
+    },
+
+    onPublishing() {
+      startReporting();
+    },
+
+    onUnpublishing() {
+      stopReporting();
+    },
+
+    onPreDestroy() {
+      stopReporting();
+      hostInstance = null;
     },
 
     uninstall() {
-      if (statsTimer !== null) {
-        clearInterval(statsTimer);
-        statsTimer = null;
-      }
+      stopReporting();
+      hostInstance = null;
     },
   };
 
