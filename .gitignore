@@ -56,3 +56,8 @@ packages/*/README.md
 packages/*/README_zh.md
 packages/*/README_en.md
 packages/*/LICENSE
+
+# Playwright
+playwright-report
+test-results
+.playwright-browsers
