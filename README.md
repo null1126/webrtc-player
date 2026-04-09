@@ -42,7 +42,7 @@ import { RtcPlayer } from '@webrtc-player/core';
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: document.getElementById('video') as HTMLVideoElement,
+  target: document.getElementById('video') as HTMLVideoElement,
 });
 
 player.on('state', (state) => {
@@ -69,7 +69,7 @@ const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
-  video: document.getElementById('preview') as HTMLVideoElement,
+  target: document.getElementById('preview') as HTMLVideoElement,
 });
 
 publisher.on('streamstart', ({ stream }) => {
@@ -114,14 +114,14 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayerOptions
 
-| 属性        | 类型                | 必填 | 说明                                    |
-| ----------- | ------------------- | ---- | --------------------------------------- |
-| `url`       | `string`            | 是   | WebRTC 流地址                           |
-| `api`       | `string`            | 是   | 信令服务器 HTTP/HTTPS 地址              |
-| `video`     | `HTMLVideoElement`  | 否   | 视频元素，自动绑定远端流                |
-| `media`     | `MediaKind`         | 否   | 媒体类型：`'audio'`、`'video'`、`'all'` |
-| `signaling` | `SignalingProvider` | 否   | 自定义信令提供者（优先于 `api`）        |
-| `config`    | `RTCConfiguration`  | 否   | 自定义 RTCConfiguration                 |
+| 属性        | 类型                                   | 必填 | 说明                                    |
+| ----------- | -------------------------------------- | ---- | --------------------------------------- |
+| `url`       | `string`                               | 是   | WebRTC 流地址                           |
+| `api`       | `string`                               | 是   | 信令服务器 HTTP/HTTPS 地址              |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement` | 否   | 渲染元素，自动绑定远端流                |
+| `media`     | `MediaKind`                            | 否   | 媒体类型：`'audio'`、`'video'`、`'all'` |
+| `signaling` | `SignalingProvider`                    | 否   | 自定义信令提供者（优先于 `api`）        |
+| `config`    | `RTCConfiguration`                     | 否   | 自定义 RTCConfiguration                 |
 
 #### RtcPlayer 方法
 
@@ -154,14 +154,14 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisherOptions
 
-| 属性        | 类型                | 必填 | 说明                       |
-| ----------- | ------------------- | ---- | -------------------------- |
-| `url`       | `string`            | 是   | WebRTC 流地址              |
-| `api`       | `string`            | 是   | 信令服务器 HTTP/HTTPS 地址 |
-| `source`    | `MediaSource`       | 是   | 媒体源配置                 |
-| `video`     | `HTMLVideoElement`  | 否   | 预览视频元素               |
-| `signaling` | `SignalingProvider` | 否   | 自定义信令提供者           |
-| `config`    | `RTCConfiguration`  | 否   | 自定义 RTCConfiguration    |
+| 属性        | 类型                                   | 必填 | 说明                       |
+| ----------- | -------------------------------------- | ---- | -------------------------- |
+| `url`       | `string`                               | 是   | WebRTC 流地址              |
+| `api`       | `string`                               | 是   | 信令服务器 HTTP/HTTPS 地址 |
+| `source`    | `MediaSource`                          | 是   | 媒体源配置                 |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement` | 否   | 预览渲染元素               |
+| `signaling` | `SignalingProvider`                    | 否   | 自定义信令提供者           |
+| `config`    | `RTCConfiguration`                     | 否   | 自定义 RTCConfiguration    |
 
 #### RtcPublisher 方法
 

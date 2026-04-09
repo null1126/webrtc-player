@@ -42,7 +42,7 @@ import { RtcPlayer } from '@webrtc-player/core';
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: document.getElementById('video') as HTMLVideoElement,
+  target: document.getElementById('video') as HTMLVideoElement,
 });
 
 player.on('state', (state) => {
@@ -69,7 +69,7 @@ const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
-  video: document.getElementById('preview') as HTMLVideoElement,
+  target: document.getElementById('preview') as HTMLVideoElement,
 });
 
 publisher.on('streamstart', ({ stream }) => {
@@ -114,14 +114,14 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayerOptions
 
-| Property    | Type                | Required | Description                                 |
-| ----------- | ------------------- | -------- | ------------------------------------------- |
-| `url`       | `string`            | Yes      | WebRTC stream URL                           |
-| `api`       | `string`            | Yes      | Signaling server HTTP/HTTPS URL             |
-| `video`     | `HTMLVideoElement`  | No       | Video element for auto-binding              |
-| `media`     | `MediaKind`         | No       | Media type: `'audio'`, `'video'`, `'all'`   |
-| `signaling` | `SignalingProvider` | No       | Custom signaling provider (overrides `api`) |
-| `config`    | `RTCConfiguration`  | No       | Custom RTCConfiguration                     |
+| Property    | Type                                   | Required | Description                                 |
+| ----------- | -------------------------------------- | -------- | ------------------------------------------- |
+| `url`       | `string`                               | Yes      | WebRTC stream URL                           |
+| `api`       | `string`                               | Yes      | Signaling server HTTP/HTTPS URL             |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement` | No       | Render target element for auto-binding      |
+| `media`     | `MediaKind`                            | No       | Media type: `'audio'`, `'video'`, `'all'`   |
+| `signaling` | `SignalingProvider`                    | No       | Custom signaling provider (overrides `api`) |
+| `config`    | `RTCConfiguration`                     | No       | Custom RTCConfiguration                     |
 
 #### RtcPlayer Methods
 
@@ -154,14 +154,14 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisherOptions
 
-| Property    | Type                | Required | Description                     |
-| ----------- | ------------------- | -------- | ------------------------------- |
-| `url`       | `string`            | Yes      | WebRTC stream URL               |
-| `api`       | `string`            | Yes      | Signaling server HTTP/HTTPS URL |
-| `source`    | `MediaSource`       | Yes      | Media source configuration      |
-| `video`     | `HTMLVideoElement`  | No       | Preview video element           |
-| `signaling` | `SignalingProvider` | No       | Custom signaling provider       |
-| `config`    | `RTCConfiguration`  | No       | Custom RTCConfiguration         |
+| Property    | Type                                   | Required | Description                     |
+| ----------- | -------------------------------------- | -------- | ------------------------------- |
+| `url`       | `string`                               | Yes      | WebRTC stream URL               |
+| `api`       | `string`                               | Yes      | Signaling server HTTP/HTTPS URL |
+| `source`    | `MediaSource`                          | Yes      | Media source configuration      |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement` | No       | Preview render target element   |
+| `signaling` | `SignalingProvider`                    | No       | Custom signaling provider       |
+| `config`    | `RTCConfiguration`                     | No       | Custom RTCConfiguration         |
 
 #### RtcPublisher Methods
 
