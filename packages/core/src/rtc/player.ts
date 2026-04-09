@@ -2,7 +2,8 @@ import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
 import { PluginManager } from '../plugins/manager';
 import { PluginPhase } from '../plugins/types';
-import type { MediaKind, RtcPlayerEvents, RtcPlayerOptions } from '../rtc/types';
+import { CanvasRenderer } from '../renders/canvas-renderer';
+import type { MediaKind, MediaRenderTarget, RtcPlayerEvents, RtcPlayerOptions } from '../rtc/types';
 import type { PlayerSignalingProvider } from '../signaling/types';
 import { RtcState } from '../rtc/types';
 import type { RtcPlayerPlugin, RtcPlayerPluginInstance } from '../plugins/types';
@@ -16,9 +17,11 @@ export class RtcPlayer extends RtcBase<
   RtcPlayerPluginInstance,
   PlayerSignalingProvider
 > {
-  private target?: HTMLVideoElement | HTMLAudioElement;
+  private target?: MediaRenderTarget;
   private mediaKind: MediaKind;
+  private muted: boolean;
   private _currentStream: MediaStream | null = null;
+  private canvasRenderer = new CanvasRenderer();
   /** 保存 createSession 中的 ctx，供扩展点方法使用 */
   private _sessionCtx: ReturnType<RtcPlayer['createHookContext']> | null = null;
 
@@ -29,6 +32,7 @@ export class RtcPlayer extends RtcBase<
     pluginManager.setInstance(this);
     this.target = options.target;
     this.mediaKind = options.media ?? 'all';
+    this.muted = options.muted ?? true;
     const plugins = (options.plugins ?? []) as RtcPlayerPlugin[];
     for (const plugin of plugins) {
       pluginManager.use(plugin);
@@ -45,7 +49,7 @@ export class RtcPlayer extends RtcBase<
   /**
    * 获取已绑定的目标元素
    */
-  getTargetElement(): HTMLVideoElement | HTMLAudioElement | undefined {
+  getTargetElement(): MediaRenderTarget | undefined {
     return this.target;
   }
 
@@ -199,6 +203,7 @@ export class RtcPlayer extends RtcBase<
 
   protected resetSession(): void {
     this._currentStream = null;
+    this.canvasRenderer.stop();
     if (this.pc) {
       this.pc.close();
       this.pc = null;
@@ -226,10 +231,26 @@ export class RtcPlayer extends RtcBase<
       const modifiedStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
       const finalStream = modifiedStream ?? stream;
 
-      this.target.srcObject = finalStream;
-      this.target.muted = true;
-      this.target.onloadedmetadata = () => {
-        this.target!.play();
+      if (this.canvasRenderer.isCanvasTarget(this.target)) {
+        this.canvasRenderer.attach(this.target, finalStream, {
+          muted: this.muted,
+          onPlaying: () => {
+            this.pluginManager.callHook(
+              this.createHookContext(PluginPhase.PLAYER_VIDEO_PLAYING),
+              'onPlaying',
+              finalStream
+            );
+          },
+        });
+        return;
+      }
+
+      const mediaTarget = this.target;
+      this.canvasRenderer.stop();
+      mediaTarget.srcObject = finalStream;
+      mediaTarget.muted = this.muted;
+      mediaTarget.onloadedmetadata = () => {
+        void mediaTarget.play();
         // Hook: onPlaying
         this.pluginManager.callHook(
           this.createHookContext(PluginPhase.PLAYER_VIDEO_PLAYING),
@@ -241,6 +262,7 @@ export class RtcPlayer extends RtcBase<
   }
 
   public override destroy(): void {
+    this.canvasRenderer.stop();
     super.destroy();
   }
 }

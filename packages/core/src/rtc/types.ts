@@ -107,14 +107,19 @@ export interface RtcBaseOptions {
  */
 export type MediaKind = 'audio' | 'video' | 'all';
 
+/** 渲染目标元素 */
+export type MediaRenderTarget = HTMLVideoElement | HTMLAudioElement | HTMLCanvasElement;
+
 /**
  * 拉流选项
  */
 export interface RtcPlayerOptions extends RtcBaseOptions {
   /** 自定义拉流信令提供者（优先于 api） */
   signaling?: PlayerSignalingProvider;
-  /** 目标渲染元素（自动绑定远端流） */
-  target?: HTMLVideoElement | HTMLAudioElement;
+  /** 目标渲染元素（自动绑定远端流）；支持 video/audio/canvas */
+  target?: MediaRenderTarget;
+  /** 目标是否静音（默认: true） */
+  muted?: boolean;
   /** 媒体类型配置（默认: 'all'） */
   media?: MediaKind;
   /** 插件列表 */
@@ -129,8 +134,10 @@ export interface RtcPublisherOptions extends RtcBaseOptions {
   signaling?: PublisherSignalingProvider;
   /** 媒体源 */
   source: MediaSource;
-  /** 预览目标元素 */
-  target?: HTMLVideoElement | HTMLAudioElement;
+  /** 预览目标元素；支持 video/audio/canvas */
+  target?: MediaRenderTarget;
+  /** 目标是否静音（默认: true） */
+  muted?: boolean;
   /** 插件列表 */
   plugins?: RtcPublisherPlugin[];
 }

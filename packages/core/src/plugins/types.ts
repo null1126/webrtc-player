@@ -1,5 +1,6 @@
 import type {
   RtcPlayerOptions as RtcPlayerOptionsFromRtc,
+  MediaRenderTarget,
   MediaSource as RtcMediaSource,
 } from '../rtc/types';
 
@@ -244,7 +245,7 @@ export interface RtcPlayerPluginInstance {
   /** 当前拉流的 URL */
   getStreamUrl(): string;
   /** 获取已绑定的目标元素 */
-  getTargetElement(): HTMLVideoElement | HTMLAudioElement | undefined;
+  getTargetElement(): MediaRenderTarget | undefined;
   /** 获取当前远端 MediaStream（播放后可用） */
   getCurrentStream(): MediaStream | null;
   /** 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API */
@@ -380,6 +381,8 @@ export interface RtcPublisherPluginInstance {
   readonly connectionState: RTCPeerConnectionState;
   /** 获取本地 MediaStream */
   getStream(): MediaStream | null;
+  /** 获取已绑定的目标元素 */
+  getTargetElement(): MediaRenderTarget | undefined;
   /** 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API */
   getPeerConnection(): RTCPeerConnection | null;
 }

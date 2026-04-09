@@ -2,7 +2,9 @@ import { RtcBase } from './base';
 import { HttpSignalingProvider } from '../signaling/http';
 import { PluginManager } from '../plugins/manager';
 import { PluginPhase } from '../plugins/types';
+import { CanvasRenderer } from '../renders/canvas-renderer';
 import type {
+  MediaRenderTarget,
   MediaSource,
   MediaSourceMicrophone,
   RtcPublisherEvents,
@@ -22,9 +24,11 @@ export class RtcPublisher extends RtcBase<
   PublisherSignalingProvider
 > {
   private _source: MediaSource;
-  private target?: HTMLVideoElement | HTMLAudioElement;
+  private target?: MediaRenderTarget;
+  private muted: boolean;
   private localStream: MediaStream | null = null;
   private activeTransceivers: RTCRtpTransceiver[] = [];
+  private canvasRenderer = new CanvasRenderer();
   /** 保存 start() 中的 ctx，供扩展点方法使用 */
   private _startCtx: HookContext<RtcPublisherPluginInstance> | null = null;
 
@@ -35,6 +39,7 @@ export class RtcPublisher extends RtcBase<
     pluginManager.setInstance(this);
     this._source = options.source;
     this.target = options.target;
+    this.muted = options.muted ?? true;
     const plugins = (options.plugins ?? []) as RtcPublisherPlugin[];
     for (const plugin of plugins) {
       pluginManager.use(plugin);
@@ -57,6 +62,13 @@ export class RtcPublisher extends RtcBase<
    */
   getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
+  }
+
+  /**
+   * 获取已绑定的目标元素
+   */
+  getTargetElement(): MediaRenderTarget | undefined {
+    return this.target;
   }
 
   protected override getDestroyPhase(): string {
@@ -381,10 +393,17 @@ export class RtcPublisher extends RtcBase<
   private bindVideo(): void {
     if (!this.target || !this.localStream) return;
 
-    this.target.srcObject = this.localStream;
-    this.target.muted = true;
-    this.target.onloadedmetadata = () => {
-      this.target?.play();
+    if (this.canvasRenderer.isCanvasTarget(this.target)) {
+      this.canvasRenderer.attach(this.target, this.localStream, { muted: this.muted });
+      return;
+    }
+
+    const mediaTarget = this.target;
+    this.canvasRenderer.stop();
+    mediaTarget.srcObject = this.localStream;
+    mediaTarget.muted = this.muted;
+    mediaTarget.onloadedmetadata = () => {
+      void mediaTarget.play();
     };
   }
 
@@ -496,13 +515,15 @@ export class RtcPublisher extends RtcBase<
 
     if (!stream) {
       this.localStream = null;
-      if (this.target) {
+      this.canvasRenderer.stop();
+      if (this.target && !this.canvasRenderer.isCanvasTarget(this.target)) {
         this.target.srcObject = null;
       }
     }
   }
 
   public override destroy(): void {
+    this.canvasRenderer.stop();
     this.stop();
     super.destroy();
   }

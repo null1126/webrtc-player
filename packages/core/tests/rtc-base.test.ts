@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RtcBase } from '../src/rtc/base';
 import { PluginManager } from '../src/plugins/manager';
-import type { RtcBaseOptions, SignalingProvider } from '../src/rtc/types';
+import type { SignalingProvider } from '../src/signaling/types';
+import type { RtcBaseOptions } from '../src/rtc/types';
 
 class MockPeerConnection {
   connectionState: RTCPeerConnectionState = 'new';
