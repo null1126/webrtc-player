@@ -29,6 +29,7 @@ module.exports = {
     { name: 'examples', description: '示例代码' },
     { name: 'docs', description: '文档' },
     { name: 'test', description: '测试' },
+    { name: 'plugin', description: '插件' },
     { name: 'build', description: '构建' },
     { name: 'ci', description: 'CI/CD' },
   ],
