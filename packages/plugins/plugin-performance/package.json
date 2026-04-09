@@ -1,6 +1,6 @@
 {
   "name": "@webrtc-player/plugin-performance",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Performance monitoring plugin for webrtc-player — reports FPS and network stats via callback",
   "license": "MIT",
   "keywords": [

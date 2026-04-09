@@ -30,39 +30,53 @@ export function createPerformancePlugin(
 
   let hostInstance: PerfInstance | null = null;
   let statsTimer: ReturnType<typeof setInterval> | null = null;
-  let rafId: number | null = null;
 
+  // 优先使用真实视频帧回调（requestVideoFrameCallback）
+  let videoFrameCbId: number | null = null;
+  let trackedVideoEl: HTMLVideoElement | null = null;
   let frameCount = 0;
   let lastReportTime = 0;
+
+  // FPS 兜底（无法使用 requestVideoFrameCallback 时）
+  let lastDecodedFrames = 0;
+  let lastEncodedFrames = 0;
+
+  // 网络差分基线
   let lastBytesSent = 0;
   let lastBytesReceived = 0;
   let lastTimestamp = 0;
 
-  const startFpsTracking = () => {
-    if (rafId !== null) return;
+  const supportsVideoFrameCallback = (el: HTMLVideoElement) => {
+    return typeof el.requestVideoFrameCallback === 'function';
+  };
+
+  const startVideoFrameTracking = (videoEl: HTMLVideoElement) => {
+    if (videoFrameCbId !== null) return;
+    if (!supportsVideoFrameCallback(videoEl)) return;
+
+    trackedVideoEl = videoEl;
+
     const tick = () => {
       frameCount += 1;
-      rafId = requestAnimationFrame(tick);
+      if (!trackedVideoEl) return;
+      videoFrameCbId = trackedVideoEl.requestVideoFrameCallback(tick);
     };
-    rafId = requestAnimationFrame(tick);
+
+    videoFrameCbId = videoEl.requestVideoFrameCallback(tick);
   };
 
-  const stopFpsTracking = () => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
+  const stopVideoFrameTracking = () => {
+    if (trackedVideoEl && videoFrameCbId !== null && trackedVideoEl.cancelVideoFrameCallback) {
+      trackedVideoEl.cancelVideoFrameCallback(videoFrameCbId);
     }
+    trackedVideoEl = null;
+    videoFrameCbId = null;
     frameCount = 0;
   };
 
-  const flushFps = (): FpsStats => {
-    const now = performance.now();
-    const elapsed = (now - lastReportTime) / 1000;
-    const fps = elapsed > 0 ? Math.round((frameCount / elapsed) * 10) / 10 : 0;
-    const result: FpsStats = { fps, frames: frameCount };
-    frameCount = 0;
-    lastReportTime = now;
-    return result;
+  const resetFpsFallbackBaseline = () => {
+    lastDecodedFrames = 0;
+    lastEncodedFrames = 0;
   };
 
   const resetNetworkDelta = () => {
@@ -144,12 +158,73 @@ export function createPerformancePlugin(
     };
   };
 
+  const collectRealFrameFps = async (instance: PerfInstance): Promise<FpsStats> => {
+    const now = performance.now();
+    const elapsed = (now - lastReportTime) / 1000;
+    const role = getRole(instance);
+
+    // 优先：播放器场景使用 requestVideoFrameCallback 统计真实渲染帧
+    if (isPlayerInstance(instance)) {
+      const target = instance.getTargetElement();
+      if (target instanceof HTMLVideoElement && supportsVideoFrameCallback(target)) {
+        // 首次进入或元素切换时重建追踪
+        if (trackedVideoEl !== target || videoFrameCbId === null) {
+          stopVideoFrameTracking();
+          startVideoFrameTracking(target);
+        }
+
+        const fps = elapsed > 0 ? Math.round((frameCount / elapsed) * 10) / 10 : 0;
+        const result: FpsStats = { fps, frames: frameCount };
+        frameCount = 0;
+        lastReportTime = now;
+        return result;
+      }
+    }
+
+    // 兜底：通过 WebRTC stats 的 frames* 累计值差分估算真实帧率
+    const pc = instance.getPeerConnection();
+    if (!pc) {
+      lastReportTime = now;
+      return { fps: 0, frames: 0 };
+    }
+
+    const stats = await pc.getStats();
+    let currentFrames = 0;
+
+    stats.forEach((report) => {
+      if (role === 'player') {
+        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+          currentFrames += Number(report.framesDecoded ?? report.framesReceived ?? 0);
+        }
+      } else if (report.type === 'outbound-rtp' && report.kind === 'video') {
+        currentFrames += Number(report.framesEncoded ?? report.framesSent ?? 0);
+      }
+    });
+
+    const prevFrames = role === 'player' ? lastDecodedFrames : lastEncodedFrames;
+    const deltaFrames = Math.max(0, currentFrames - prevFrames);
+
+    if (role === 'player') {
+      lastDecodedFrames = currentFrames;
+    } else {
+      lastEncodedFrames = currentFrames;
+    }
+
+    const fps = elapsed > 0 ? Math.round((deltaFrames / elapsed) * 10) / 10 : 0;
+    lastReportTime = now;
+
+    return {
+      fps,
+      frames: deltaFrames,
+    };
+  };
+
   const stopReporting = () => {
     if (statsTimer !== null) {
       clearInterval(statsTimer);
       statsTimer = null;
     }
-    stopFpsTracking();
+    stopVideoFrameTracking();
   };
 
   const startReporting = () => {
@@ -157,13 +232,20 @@ export function createPerformancePlugin(
 
     frameCount = 0;
     lastReportTime = performance.now();
+    resetFpsFallbackBaseline();
     resetNetworkDelta();
-    startFpsTracking();
+
+    if (isPlayerInstance(hostInstance)) {
+      const target = hostInstance.getTargetElement();
+      if (target instanceof HTMLVideoElement) {
+        startVideoFrameTracking(target);
+      }
+    }
 
     statsTimer = setInterval(async () => {
       if (!hostInstance) return;
 
-      const fps = flushFps();
+      const fps = await collectRealFrameFps(hostInstance);
       const network = await collectNetworkStats(hostInstance);
       const role = getRole(hostInstance);
 
