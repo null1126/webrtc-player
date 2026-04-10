@@ -23,9 +23,8 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '指南', link: '/zh/guide/' },
-          { text: '插件', link: '/zh/guide/plugins' },
-          { text: 'API', link: '/zh/api/' },
           { text: '示例', link: '/zh/examples/' },
+          { text: '插件', link: '/zh/plugins/system' },
         ],
       },
       head: [
@@ -127,9 +126,8 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/en/guide/' },
-          { text: 'Plugins', link: '/en/guide/plugins' },
-          { text: 'API', link: '/en/api/' },
           { text: 'Examples', link: '/en/examples/' },
+          { text: 'Plugins', link: '/en/plugins/system' },
         ],
       },
       head: [
@@ -252,20 +250,34 @@ export default defineConfig({
             { text: '事件监听', link: '/zh/guide/events' },
             { text: '推流指南', link: '/zh/guide/publisher' },
             { text: '自定义信令', link: '/zh/guide/custom-signaling' },
-            { text: '插件系统', link: '/zh/guide/plugins' },
           ],
         },
-      ],
-      '/zh/api/': [
         {
           text: 'API',
           items: [
             { text: 'RtcPlayer', link: '/zh/api/' },
             { text: 'RtcPublisher', link: '/zh/api/publisher' },
-            { text: 'RtcPlayerOptions', link: '/zh/api/options' },
-            { text: 'PublisherOptions', link: '/zh/api/publisher-options' },
             { text: 'RtcState', link: '/zh/api/state' },
-            { text: '插件 API', link: '/zh/api/plugins' },
+          ],
+        },
+      ],
+      '/zh/api/': [
+        {
+          text: '指南',
+          items: [
+            { text: '简介', link: '/zh/guide/' },
+            { text: '快速开始', link: '/zh/guide/getting-started' },
+            { text: '事件监听', link: '/zh/guide/events' },
+            { text: '推流指南', link: '/zh/guide/publisher' },
+            { text: '自定义信令', link: '/zh/guide/custom-signaling' },
+          ],
+        },
+        {
+          text: 'API',
+          items: [
+            { text: 'RtcPlayer', link: '/zh/api/' },
+            { text: 'RtcPublisher', link: '/zh/api/publisher' },
+            { text: 'RtcState', link: '/zh/api/state' },
           ],
         },
       ],
@@ -279,6 +291,16 @@ export default defineConfig({
           ],
         },
       ],
+      '/zh/plugins/': [
+        {
+          text: '插件',
+          items: [
+            { text: '插件系统', link: '/zh/plugins/system' },
+            { text: '插件 API', link: '/zh/plugins/api' },
+            { text: '官方插件', link: '/zh/plugins/official' },
+          ],
+        },
+      ],
       '/en/guide/': [
         {
           text: 'Guide',
@@ -288,20 +310,34 @@ export default defineConfig({
             { text: 'Events', link: '/en/guide/events' },
             { text: 'Publishing', link: '/en/guide/publisher' },
             { text: 'Custom Signaling', link: '/en/guide/custom-signaling' },
-            { text: 'Plugin System', link: '/en/guide/plugins' },
           ],
         },
-      ],
-      '/en/api/': [
         {
           text: 'API',
           items: [
             { text: 'RtcPlayer', link: '/en/api/' },
             { text: 'RtcPublisher', link: '/en/api/publisher' },
-            { text: 'RtcPlayerOptions', link: '/en/api/options' },
-            { text: 'PublisherOptions', link: '/en/api/publisher-options' },
             { text: 'RtcState', link: '/en/api/state' },
-            { text: 'Plugin API', link: '/en/api/plugins' },
+          ],
+        },
+      ],
+      '/en/api/': [
+        {
+          text: 'Guide',
+          items: [
+            { text: 'Introduction', link: '/en/guide/' },
+            { text: 'Getting Started', link: '/en/guide/getting-started' },
+            { text: 'Events', link: '/en/guide/events' },
+            { text: 'Publishing', link: '/en/guide/publisher' },
+            { text: 'Custom Signaling', link: '/en/guide/custom-signaling' },
+          ],
+        },
+        {
+          text: 'API',
+          items: [
+            { text: 'RtcPlayer', link: '/en/api/' },
+            { text: 'RtcPublisher', link: '/en/api/publisher' },
+            { text: 'RtcState', link: '/en/api/state' },
           ],
         },
       ],
@@ -315,12 +351,22 @@ export default defineConfig({
           ],
         },
       ],
+      '/en/plugins/': [
+        {
+          text: 'Plugins',
+          items: [
+            { text: 'Plugin System', link: '/en/plugins/system' },
+            { text: 'Plugin API', link: '/en/plugins/api' },
+            { text: 'Official Plugins', link: '/en/plugins/official' },
+          ],
+        },
+      ],
     },
 
     // footer
     footer: {
       message: '基于 MIT 许可证发布',
-      copyright: 'Copyright © 2024 WebRTC Player',
+      copyright: 'Copyright © 2026 WebRTC Player',
     },
   },
 

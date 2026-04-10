@@ -1,6 +1,6 @@
 ---
 title: WebRTC Player - Switch Stream
-description: Dynamically switch video sources during playback.
+description: Dynamically switch playback sources with state and error handling.
 ---
 
 # Switch Stream
@@ -8,33 +8,43 @@ description: Dynamically switch video sources during playback.
 ## Basic Usage
 
 ```typescript
-player.switchStream('webrtc://localhost/live/newstream');
+await player.switchStream('webrtc://localhost/live/newstream');
 ```
 
-## Example
+## Full Example
 
 ```typescript
+import { RtcPlayer, RtcState } from '@webrtc-player/core';
+
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/camera1',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: videoElement,
+  target: document.getElementById('video') as HTMLVideoElement,
 });
 
 player.on('state', (state) => {
+  if (state === RtcState.SWITCHING) {
+    console.log('Switching stream...');
+  }
   if (state === RtcState.SWITCHED) {
     console.log('Switched');
   }
 });
 
-player.play();
+player.on('error', (error) => {
+  console.error('Switch failed:', error);
+});
 
-// Switch to another source after 3 seconds
-setTimeout(() => {
-  player.switchStream('webrtc://localhost/live/camera2');
+await player.play();
+
+// Switch after 3 seconds
+setTimeout(async () => {
+  await player.switchStream('webrtc://localhost/live/camera2');
 }, 3000);
 ```
 
 ## Notes
 
-1. Triggers `SWITCHING` → `SWITCHED` state during switching
-2. Automatically closes old connection and creates new one
+1. Switching usually triggers `SWITCHING` → `SWITCHED`
+2. The old connection is closed and a new one is created automatically
+3. Handle `error` to implement retries or graceful fallback UI

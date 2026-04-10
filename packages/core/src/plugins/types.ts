@@ -22,17 +22,6 @@ export interface IceCandidateData {
 }
 
 /**
- * ICE 候选处理结果
- * 用于 onBeforeICESetCandidate 钩子的返回值
- */
-export interface ProcessedIceCandidate {
-  /** 处理后的 ICE 候选 */
-  candidate: RTCIceCandidateInit;
-  /** 是否应该跳过添加（默认 false） */
-  skip?: boolean;
-}
-
-/**
  * 错误数据
  */
 export interface ErrorData {
@@ -140,11 +129,6 @@ export interface RtcPluginCommonHooks<S = unknown> {
   onPeerConnectionCreated?(ctx: HookContext<S>, pc: RTCPeerConnection): void;
   /** ICE 候选收集完成时触发（isRemote 在推流端始终为 false） */
   onIceCandidate?(ctx: HookContext<S>, data: IceCandidateData): void;
-  /** 在 ICE 候选被添加之前触发，允许插件修改或跳过候选 */
-  onBeforeICESetCandidate?(
-    ctx: HookContext<S>,
-    candidate: RTCIceCandidateInit
-  ): ProcessedIceCandidate | void;
   /** RTCPeerConnection 连接状态变化时触发 */
   onConnectionStateChange?(ctx: HookContext<S>, data: ConnectionStateData): void;
   /** ICE 连接状态变化时触发 */
@@ -447,7 +431,6 @@ export type RtcPlayerPipeHook =
   | 'onBeforeConnect'
   | 'onBeforeSetLocalDescription'
   | 'onBeforeSetRemoteDescription'
-  | 'onBeforeICESetCandidate'
   | 'onBeforeSwitchStream'
   | 'onBeforeVideoPlay'
   | 'onError';
@@ -456,7 +439,6 @@ export type RtcPublisherPipeHook =
   | 'onBeforeGetUserMedia'
   | 'onBeforeSetLocalDescription'
   | 'onBeforeSetRemoteDescription'
-  | 'onBeforeICESetCandidate'
   | 'onBeforeSourceChange'
   | 'onError';
 

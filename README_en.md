@@ -1,6 +1,6 @@
 # WebRTC Player
 
-[简体中文](./README.md) · [English](./README_zh.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://null1126.github.io/webrtc-player/zh/)
+[简体中文](./README.md) · [English](./README_en.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://null1126.github.io/webrtc-player/en/)
 
 A lightweight, framework-agnostic WebRTC library for browser-based real-time video streaming. Supports both **playback** (subscribe) and **publishing** (push).
 
@@ -15,6 +15,8 @@ A lightweight, framework-agnostic WebRTC library for browser-based real-time vid
 - **Custom Signaling** — Built-in HTTP signaling provider; implement your own via `SignalingProvider` interface
 - **Multi-Source Capture** — Camera, microphone, screen capture, or custom MediaStream
 - **Stream Switching** — Switch video sources without recreating the player instance
+- **Configurable Connection Strategy** — Supports auto reconnect and ICE behavior tuning
+- **Flexible Render Target** — Supports video/audio/canvas target elements with mute control
 - **Plugin System** — Extensible via plugins; logging, performance monitoring, and more available out of the box
 - **Zero External Dependencies** — No third-party runtime dependencies; only standard Web APIs
 
@@ -43,6 +45,16 @@ const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
   target: document.getElementById('video') as HTMLVideoElement,
+  muted: true,
+  reconnect: {
+    enabled: true,
+    maxRetries: 6,
+    exponential: true,
+  },
+  ice: {
+    waitForComplete: true,
+    gatheringTimeout: 3000,
+  },
 });
 
 player.on('state', (state) => {
@@ -70,6 +82,14 @@ const publisher = new RtcPublisher({
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
   target: document.getElementById('preview') as HTMLVideoElement,
+  muted: true,
+  reconnect: {
+    enabled: true,
+    maxRetries: 5,
+  },
+  ice: {
+    waitForComplete: false,
+  },
 });
 
 publisher.on('streamstart', ({ stream }) => {
@@ -114,14 +134,17 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayerOptions
 
-| Property    | Type                                   | Required | Description                                 |
-| ----------- | -------------------------------------- | -------- | ------------------------------------------- |
-| `url`       | `string`                               | Yes      | WebRTC stream URL                           |
-| `api`       | `string`                               | Yes      | Signaling server HTTP/HTTPS URL             |
-| `target`    | `HTMLVideoElement \| HTMLAudioElement` | No       | Render target element for auto-binding      |
-| `media`     | `MediaKind`                            | No       | Media type: `'audio'`, `'video'`, `'all'`   |
-| `signaling` | `SignalingProvider`                    | No       | Custom signaling provider (overrides `api`) |
-| `config`    | `RTCConfiguration`                     | No       | Custom RTCConfiguration                     |
+| Property    | Type                                                        | Required | Description                                                 |
+| ----------- | ----------------------------------------------------------- | -------- | ----------------------------------------------------------- |
+| `url`       | `string`                                                    | Yes      | WebRTC stream URL                                           |
+| `api`       | `string`                                                    | Yes      | Signaling server HTTP/HTTPS URL                             |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement \| HTMLCanvasElement` | No       | Render target element for auto-binding (video/audio/canvas) |
+| `muted`     | `boolean`                                                   | No       | Whether target element is muted (default `true`)            |
+| `media`     | `MediaKind`                                                 | No       | Media type: `'audio'`, `'video'`, `'all'`                   |
+| `signaling` | `SignalingProvider`                                         | No       | Custom signaling provider (overrides `api`)                 |
+| `config`    | `RTCConfiguration`                                          | No       | Custom RTCConfiguration                                     |
+| `reconnect` | `ReconnectOptions`                                          | No       | Auto reconnect configuration                                |
+| `ice`       | `IceOptions`                                                | No       | ICE behavior config (gathering strategy and timeout)        |
 
 #### RtcPlayer Methods
 
@@ -135,14 +158,16 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayer Events
 
-| Event                | Payload                                         | Description              |
-| -------------------- | ----------------------------------------------- | ------------------------ |
-| `state`              | `RtcState`                                      | Connection state changes |
-| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }` | New media track received |
-| `icecandidate`       | `RTCIceCandidate`                               | ICE candidate gathered   |
-| `iceconnectionstate` | `RTCIceConnectionState`                         | ICE connection state     |
-| `icegatheringstate`  | `RTCIceGatheringState`                          | ICE gathering state      |
-| `error`              | `string`                                        | Player error occurred    |
+| Event                | Payload                                                        | Description                     |
+| -------------------- | -------------------------------------------------------------- | ------------------------------- |
+| `state`              | `RtcState`                                                     | Connection state changes        |
+| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }`                | New media track received        |
+| `icecandidate`       | `RTCIceCandidate`                                              | ICE candidate gathered          |
+| `iceconnectionstate` | `RTCIceConnectionState`                                        | ICE connection state            |
+| `icegatheringstate`  | `RTCIceGatheringState`                                         | ICE gathering state             |
+| `reconnecting`       | `{ retryCount: number; maxRetries: number; interval: number }` | Reconnecting in progress        |
+| `reconnectfailed`    | `{ maxRetries: number }`                                       | Reconnect failed at max retries |
+| `error`              | `string`                                                       | Player error occurred           |
 
 ---
 
@@ -154,14 +179,17 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisherOptions
 
-| Property    | Type                                   | Required | Description                     |
-| ----------- | -------------------------------------- | -------- | ------------------------------- |
-| `url`       | `string`                               | Yes      | WebRTC stream URL               |
-| `api`       | `string`                               | Yes      | Signaling server HTTP/HTTPS URL |
-| `source`    | `MediaSource`                          | Yes      | Media source configuration      |
-| `target`    | `HTMLVideoElement \| HTMLAudioElement` | No       | Preview render target element   |
-| `signaling` | `SignalingProvider`                    | No       | Custom signaling provider       |
-| `config`    | `RTCConfiguration`                     | No       | Custom RTCConfiguration         |
+| Property    | Type                                                        | Required | Description                                        |
+| ----------- | ----------------------------------------------------------- | -------- | -------------------------------------------------- |
+| `url`       | `string`                                                    | Yes      | WebRTC stream URL                                  |
+| `api`       | `string`                                                    | Yes      | Signaling server HTTP/HTTPS URL                    |
+| `source`    | `MediaSource`                                               | Yes      | Media source configuration                         |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement \| HTMLCanvasElement` | No       | Preview render target element (video/audio/canvas) |
+| `muted`     | `boolean`                                                   | No       | Whether target element is muted (default `true`)   |
+| `signaling` | `SignalingProvider`                                         | No       | Custom signaling provider                          |
+| `config`    | `RTCConfiguration`                                          | No       | Custom RTCConfiguration                            |
+| `reconnect` | `ReconnectOptions`                                          | No       | Auto reconnect configuration                       |
+| `ice`       | `IceOptions`                                                | No       | ICE behavior configuration                         |
 
 #### RtcPublisher Methods
 
@@ -174,15 +202,17 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisher Events
 
-| Event              | Payload                                         | Description              |
-| ------------------ | ----------------------------------------------- | ------------------------ |
-| `streamstart`      | `{ stream: MediaStream }`                       | Publishing started       |
-| `streamstop`       | `void`                                          | Publishing stopped       |
-| `sourcechange`     | `MediaSource`                                   | Source switched          |
-| `track`            | `{ stream: MediaStream; event: RTCTrackEvent }` | Remote track received    |
-| `permissiondenied` | `{ source: MediaSource; error: Error }`         | Media permission denied  |
-| `state`            | `RtcState`                                      | Connection state changes |
-| `error`            | `string`                                        | Publisher error occurred |
+| Event              | Payload                                                        | Description                     |
+| ------------------ | -------------------------------------------------------------- | ------------------------------- |
+| `streamstart`      | `{ stream: MediaStream }`                                      | Publishing started              |
+| `streamstop`       | `void`                                                         | Publishing stopped              |
+| `sourcechange`     | `MediaSource`                                                  | Source switched                 |
+| `track`            | `{ stream: MediaStream; event: RTCTrackEvent }`                | Remote track received           |
+| `permissiondenied` | `{ source: MediaSource; error: Error }`                        | Media permission denied         |
+| `state`            | `RtcState`                                                     | Connection state changes        |
+| `reconnecting`     | `{ retryCount: number; maxRetries: number; interval: number }` | Reconnecting in progress        |
+| `reconnectfailed`  | `{ maxRetries: number }`                                       | Reconnect failed at max retries |
+| `error`            | `string`                                                       | Publisher error occurred        |
 
 ---
 
