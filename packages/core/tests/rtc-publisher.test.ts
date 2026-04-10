@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RtcPublisher } from '../src/rtc/publisher';
-import type { SignalingProvider } from '../src/rtc/types';
+import type { SignalingProvider } from '../src/signaling/types';
 
 class MockPeerConnection {
   connectionState: RTCPeerConnectionState = 'new';

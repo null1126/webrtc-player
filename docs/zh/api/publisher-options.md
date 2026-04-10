@@ -1,30 +1,10 @@
 ---
-title: WebRTC Player - PublisherOptions
-description: RtcPublisher 推流器配置选项。
+title: WebRTC Player - RtcPublisherOptions
+description: RtcPublisherOptions 已并入 RtcPublisher API 页面。
 ---
 
-# PublisherOptions
+# RtcPublisherOptions
 
-## 属性
+`RtcPublisherOptions` 文档已并入 [RtcPublisher](./publisher) 页面，避免配置项与类 API 分散。
 
-| 属性     | 类型                                   | 必填 | 说明             |
-| -------- | -------------------------------------- | ---- | ---------------- |
-| `url`    | `string`                               | 是   | WebRTC 推流地址  |
-| `api`    | `string`                               | 是   | 信令服务器地址   |
-| `source` | `MediaSource`                          | 是   | 媒体源配置       |
-| `target` | `HTMLVideoElement \| HTMLAudioElement` | 否   | 本地预览渲染元素 |
-| `config` | `RTCConfiguration`                     | 否   | ICE 服务器配置   |
-
-## 示例
-
-```typescript
-const publisher = new RtcPublisher({
-  url: 'webrtc://localhost/live/mystream',
-  api: 'http://localhost:1985/rtc/v1/publish/',
-  source: { type: 'camera', audio: true },
-  target: preview,
-  config: {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-  },
-});
-```
+请前往 [RtcPublisher > 配置项（RtcPublisherOptions）](./publisher#配置项rtcpublisheroptions)。

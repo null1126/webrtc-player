@@ -1,5 +1,6 @@
 import type {
   RtcPlayerOptions as RtcPlayerOptionsFromRtc,
+  MediaRenderTarget,
   MediaSource as RtcMediaSource,
 } from '../rtc/types';
 
@@ -18,17 +19,6 @@ export interface IceCandidateData {
   candidate: RTCIceCandidate;
   /** 是否来自远程（推流端始终为 false，拉流端在收到 answer 后触发时为 true） */
   isRemote?: boolean;
-}
-
-/**
- * ICE 候选处理结果
- * 用于 onBeforeICESetCandidate 钩子的返回值
- */
-export interface ProcessedIceCandidate {
-  /** 处理后的 ICE 候选 */
-  candidate: RTCIceCandidateInit;
-  /** 是否应该跳过添加（默认 false） */
-  skip?: boolean;
 }
 
 /**
@@ -139,11 +129,6 @@ export interface RtcPluginCommonHooks<S = unknown> {
   onPeerConnectionCreated?(ctx: HookContext<S>, pc: RTCPeerConnection): void;
   /** ICE 候选收集完成时触发（isRemote 在推流端始终为 false） */
   onIceCandidate?(ctx: HookContext<S>, data: IceCandidateData): void;
-  /** 在 ICE 候选被添加之前触发，允许插件修改或跳过候选 */
-  onBeforeICESetCandidate?(
-    ctx: HookContext<S>,
-    candidate: RTCIceCandidateInit
-  ): ProcessedIceCandidate | void;
   /** RTCPeerConnection 连接状态变化时触发 */
   onConnectionStateChange?(ctx: HookContext<S>, data: ConnectionStateData): void;
   /** ICE 连接状态变化时触发 */
@@ -244,7 +229,7 @@ export interface RtcPlayerPluginInstance {
   /** 当前拉流的 URL */
   getStreamUrl(): string;
   /** 获取已绑定的目标元素 */
-  getTargetElement(): HTMLVideoElement | HTMLAudioElement | undefined;
+  getTargetElement(): MediaRenderTarget | undefined;
   /** 获取当前远端 MediaStream（播放后可用） */
   getCurrentStream(): MediaStream | null;
   /** 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API */
@@ -380,6 +365,8 @@ export interface RtcPublisherPluginInstance {
   readonly connectionState: RTCPeerConnectionState;
   /** 获取本地 MediaStream */
   getStream(): MediaStream | null;
+  /** 获取已绑定的目标元素 */
+  getTargetElement(): MediaRenderTarget | undefined;
   /** 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API */
   getPeerConnection(): RTCPeerConnection | null;
 }
@@ -444,7 +431,6 @@ export type RtcPlayerPipeHook =
   | 'onBeforeConnect'
   | 'onBeforeSetLocalDescription'
   | 'onBeforeSetRemoteDescription'
-  | 'onBeforeICESetCandidate'
   | 'onBeforeSwitchStream'
   | 'onBeforeVideoPlay'
   | 'onError';
@@ -453,7 +439,6 @@ export type RtcPublisherPipeHook =
   | 'onBeforeGetUserMedia'
   | 'onBeforeSetLocalDescription'
   | 'onBeforeSetRemoteDescription'
-  | 'onBeforeICESetCandidate'
   | 'onBeforeSourceChange'
   | 'onError';
 

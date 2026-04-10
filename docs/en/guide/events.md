@@ -1,44 +1,111 @@
 ---
 title: WebRTC Player - Events
-description: WebRTC Player event system, including playback and publishing events.
+description: WebRTC Player event model and listening patterns across common, playback, and publishing events.
 ---
 
 # Events
 
-## Event Types
+WebRTC Player uses an event-driven architecture. You can observe connection transitions, media updates, and runtime failures, then map them into robust business workflows.
 
-### Common Events
+## Quick Classification
 
-Available in both `RtcPlayer` and `RtcPublisher`:
+- Common events: emitted by both `RtcPlayer` and `RtcPublisher`
+- Playback events: emitted only by `RtcPlayer`
+- Publishing events: emitted only by `RtcPublisher`
 
-| Event                | Description              | Parameters              |
-| -------------------- | ------------------------ | ----------------------- |
-| `state`              | Connection state changed | `RtcState`              |
-| `error`              | Error occurred           | `string`                |
-| `icecandidate`       | ICE candidate            | `RTCIceCandidate`       |
-| `iceconnectionstate` | ICE connection state     | `RTCIceConnectionState` |
+## 1) Common Events (Player / Publisher)
 
-### Playback Events
+These events are available on both `RtcPlayer` and `RtcPublisher`:
 
-| Event   | Description            | Parameters          |
-| ------- | ---------------------- | ------------------- |
-| `track` | Remote stream received | `{ stream, event }` |
+> Full `state` values:
+> `connecting`, `connected`, `disconnected`, `failed`, `closed`, `switching`, `switched`, `destroyed` (see `RtcState`)
 
-### Publishing Events
+| Event                | Description                                    | Payload type                           |
+| -------------------- | ---------------------------------------------- | -------------------------------------- |
+| `state`              | RTC state changed (`connecting/connected/...`) | `RtcState`                             |
+| `error`              | Runtime error occurred                         | `string`                               |
+| `icecandidate`       | Local ICE candidate generated                  | `RTCIceCandidate`                      |
+| `iceconnectionstate` | ICE connection state updated                   | `RTCIceConnectionState`                |
+| `icegatheringstate`  | ICE gathering state updated                    | `RTCIceGatheringState`                 |
+| `reconnecting`       | Auto-reconnect attempt started                 | `{ retryCount, maxRetries, interval }` |
+| `reconnectfailed`    | Auto-reconnect exhausted (max retries reached) | `{ maxRetries }`                       |
 
-| Event              | Description          | Parameters          |
-| ------------------ | -------------------- | ------------------- |
-| `streamstart`      | Publishing started   | `{ stream }`        |
-| `streamstop`       | Publishing stopped   | `void`              |
-| `sourcechange`     | Input source changed | `MediaSource`       |
-| `permissiondenied` | Permission denied    | `{ source, error }` |
-
-## Usage
+### Recommended listeners (common)
 
 ```typescript
-player.on('state', (state) => console.log(state));
-player.off('track', handler); // Remove listener
-player.once('error', handler); // Listen once
+const onState = (state: RtcState) => {
+  console.log('State changed:', state);
+};
+
+const onError = (error: string) => {
+  console.error('Error:', error);
+};
+
+instance.on('state', onState);
+instance.on('error', onError);
 ```
+
+## 2) Playback Events (only `RtcPlayer`)
+
+| Event   | Description                 | Payload type        |
+| ------- | --------------------------- | ------------------- |
+| `track` | Remote media stream arrived | `{ stream, event }` |
+
+### Recommended listeners (playback)
+
+```typescript
+const onRemoteTrack = (payload: { stream: MediaStream; event: RTCTrackEvent }) => {
+  videoEl.srcObject = payload.stream;
+};
+
+player.on('track', onRemoteTrack);
+```
+
+## 3) Publishing Events (only `RtcPublisher`)
+
+| Event              | Description                        | Payload type        |
+| ------------------ | ---------------------------------- | ------------------- |
+| `streamstart`      | Publishing has started             | `{ stream }`        |
+| `streamstop`       | Publishing has stopped             | `void`              |
+| `sourcechange`     | Capture source switched            | `MediaSource`       |
+| `permissiondenied` | Media permission was denied        | `{ source, error }` |
+| `track`            | Remote media stream arrived (echo) | `{ stream, event }` |
+
+### Recommended listeners (publishing)
+
+```typescript
+publisher.on('streamstart', ({ stream }) => {
+  console.log('Publishing started', stream);
+});
+
+publisher.on('permissiondenied', ({ source, error }) => {
+  console.warn('Permission denied:', source, error);
+});
+```
+
+## Listener patterns
+
+```typescript
+const onTrack = (payload: { stream: MediaStream }) => {
+  console.log('Remote stream received', payload.stream);
+};
+
+player.on('track', onTrack);
+
+// Listen once
+player.once('error', (error) => {
+  console.error('Error:', error);
+});
+
+// Remove listener
+player.off('track', onTrack);
+```
+
+## Best practices
+
+- Design listeners by layers first (common / playback / publishing) to avoid mixed responsibilities
+- Map `state` into your app state machine (connecting, connected, reconnecting, failed)
+- Standardize `error` classification and reporting
+- For `permissiondenied`, provide actionable guidance (browser permissions, retry path)
 
 See [RtcState](../api/state).

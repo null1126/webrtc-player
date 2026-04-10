@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { RtcPlayer } from '../src/rtc/player';
-import type { SignalingProvider } from '../src/rtc/types';
+import type { SignalingProvider } from '../src/signaling/types';
 
 class MockPeerConnection {
   connectionState: RTCPeerConnectionState = 'new';
@@ -22,6 +22,7 @@ class MockPeerConnection {
 describe('RtcPlayer', () => {
   beforeEach(() => {
     vi.stubGlobal('RTCPeerConnection', MockPeerConnection as unknown as typeof RTCPeerConnection);
+    vi.stubGlobal('HTMLCanvasElement', class HTMLCanvasElementMock {});
   });
 
   afterEach(() => {
@@ -93,11 +94,14 @@ describe('RtcPlayer', () => {
     (player as unknown as { onTrack: (event: RTCTrackEvent) => void }).onTrack({
       streams: [stream as MediaStream],
       track: { kind: 'video' } as MediaStreamTrack,
-    } as RTCTrackEvent);
+    } as unknown as RTCTrackEvent);
 
     expect(target.srcObject).toBe(stream);
     expect(target.muted).toBe(true);
-    target.onloadedmetadata?.(new Event('loadedmetadata'));
+    const onLoadedMetadata = target.onloadedmetadata as
+      | ((this: HTMLVideoElement, ev: Event) => unknown)
+      | null;
+    onLoadedMetadata?.call(target as HTMLVideoElement, new Event('loadedmetadata'));
     expect(play).toHaveBeenCalledTimes(1);
   });
 });

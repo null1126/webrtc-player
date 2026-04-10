@@ -1,15 +1,19 @@
 ---
 title: WebRTC Player - Getting Started
-description: Quickly integrate WebRTC Player into your project, supporting both playback and publishing.
+description: Complete playback and publishing integration quickly, then scale with framework-specific patterns.
 ---
 
 # Getting Started
 
-## Requirements
+This page provides a production-oriented onboarding path: establish a minimal playback/publishing flow first, then integrate cleanly at the framework layer.
+
+## Prerequisites
+
+Before you begin, make sure your environment meets the following requirements:
 
 - Modern browsers (Chrome 56+, Firefox 44+, Safari 11+, Edge 79+)
-- HTTPS support (production) or localhost (development)
-- Streaming server with WebRTC support (SRS, ZLMediaKit, monibuca, etc.)
+- HTTPS in production (or `localhost` during development)
+- A WebRTC-capable media server (e.g., SRS, ZLMediaKit, monibuca)
 
 ## Installation
 
@@ -27,13 +31,13 @@ import { RtcPlayer } from '@webrtc-player/core';
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: document.getElementById('video') as HTMLVideoElement,
+  target: document.getElementById('video') as HTMLVideoElement,
 });
 
-player.on('state', (state) => console.log('State:', state));
-player.on('error', (error) => console.error('Error:', error));
+player.on('state', (state) => console.log('Playback state:', state));
+player.on('error', (error) => console.error('Playback error:', error));
 
-player.play();
+await player.play();
 ```
 
 ## Publishing
@@ -45,124 +49,40 @@ const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
-  video: document.getElementById('preview') as HTMLVideoElement,
+  target: document.getElementById('preview') as HTMLVideoElement,
 });
 
-publisher.on('streamstart', () => console.log('Stream started'));
-publisher.on('error', (error) => console.error('Error:', error));
+publisher.on('streamstart', () => console.log('Publishing started'));
+publisher.on('error', (error) => console.error('Publishing error:', error));
 
-publisher.start();
+await publisher.start();
 ```
 
 ## Supported Media Sources
 
-| Type       | Config                            | Description          |
-| ---------- | --------------------------------- | -------------------- |
-| Camera     | `{ type: 'camera', audio: true }` | Video + audio        |
-| Screen     | `{ type: 'screen', audio: true }` | With system audio    |
-| Microphone | `{ type: 'microphone' }`          | Audio only           |
-| Custom     | `{ type: 'custom', stream }`      | Existing MediaStream |
+| Type       | Config                            | Description            |
+| ---------- | --------------------------------- | ---------------------- |
+| Camera     | `{ type: 'camera', audio: true }` | Video + audio          |
+| Screen     | `{ type: 'screen', audio: true }` | Optional system audio  |
+| Microphone | `{ type: 'microphone' }`          | Audio-only capture     |
+| Custom     | `{ type: 'custom', stream }`      | Existing `MediaStream` |
 
-## React Usage
+## Framework Integration
 
-```typescript
-// Playback
-function VideoPlayer() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+Framework examples are now split into dedicated pages. You can access them from the left sidebar under "Framework Integration", or jump directly to:
 
-  useEffect(() => {
-    const player = new RtcPlayer({
-      url: 'webrtc://localhost/live/livestream',
-      api: 'http://localhost:1985/rtc/v1/play/',
-      video: videoRef.current,
-    });
-    player.play();
-    return () => player.destroy();
-  }, []);
+- [React Integration](./frameworks/react)
+- [Vue Integration](./frameworks/vue)
 
-  return <video ref={videoRef} controls muted />;
-}
+## Engineering Recommendations
 
-// Publishing
-function StreamPublisher() {
-  const previewRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const publisher = new RtcPublisher({
-      url: 'webrtc://localhost/live/pushstream',
-      api: 'http://localhost:1985/rtc/v1/publish/',
-      source: { type: 'camera', audio: true },
-      video: previewRef.current,
-    });
-    publisher.start();
-    return () => publisher.destroy();
-  }, []);
-
-  return <video ref={previewRef} muted autoPlay playsInline />;
-}
-```
-
-## Vue Usage
-
-```vue
-<!-- Playback -->
-<template>
-  <video ref="videoRef" controls muted />
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { RtcPlayer } from '@webrtc-player/core';
-
-const videoRef = ref<HTMLVideoElement | null>(null);
-let player: RtcPlayer | null = null;
-
-onMounted(() => {
-  player = new RtcPlayer({
-    url: 'webrtc://localhost/live/livestream',
-    api: 'http://localhost:1985/rtc/v1/play/',
-    video: videoRef.value!,
-  });
-  player.play();
-});
-
-onUnmounted(() => {
-  player?.destroy();
-});
-</script>
-```
-
-```vue
-<!-- Publishing -->
-<template>
-  <video ref="previewRef" muted autoplay playsinline />
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { RtcPublisher } from '@webrtc-player/core';
-
-const previewRef = ref<HTMLVideoElement | null>(null);
-let publisher: RtcPublisher | null = null;
-
-onMounted(() => {
-  publisher = new RtcPublisher({
-    url: 'webrtc://localhost/live/pushstream',
-    api: 'http://localhost:1985/rtc/v1/publish/',
-    source: { type: 'camera', audio: true },
-    video: previewRef.value!,
-  });
-  publisher.start();
-});
-
-onUnmounted(() => {
-  publisher?.destroy();
-});
-</script>
-```
+- Encapsulate lifecycle management to prevent player/publisher instance leaks
+- Build observability around `state` and `error` events
+- Validate permission flows early and provide actionable guidance
 
 ## Next Steps
 
-- [Events](./events) - Learn about event types
-- [Publishing](./publisher) - Camera/screen streaming
-- [API Documentation](../api/) - Configuration options
+- [Events](./events) - Understand the full event model
+- [Publishing Guide](./publisher) - Manage source switching and capture control
+- [Custom Signaling](./custom-signaling) - Integrate internal gateways or custom backends
+- [API Documentation](../api/) - Explore all available options

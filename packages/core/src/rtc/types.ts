@@ -68,6 +68,22 @@ export interface ReconnectOptions {
 }
 
 /**
+ * ICE 行为配置
+ */
+export interface IceOptions {
+  /**
+   * 是否等待 ICE 收集完成后再交换 SDP（默认: true）
+   * - true: 非 Trickle ICE 模式，先收集再交换
+   * - false: 立即交换 SDP，依赖后续候选补充
+   */
+  waitForComplete?: boolean;
+  /**
+   * 等待 ICE 收集完成的超时时间（毫秒，默认: 3000）
+   */
+  gatheringTimeout?: number;
+}
+
+/**
  * 公共选项
  */
 export interface RtcBaseOptions {
@@ -75,10 +91,12 @@ export interface RtcBaseOptions {
   url: string;
   /** 信令服务器地址 */
   api: string;
-  /** RTCConfiguration（可选） */
+  /** RTCConfiguration */
   config?: RTCConfiguration;
-  /** 重连配置（可选） */
+  /** 重连配置 */
   reconnect?: ReconnectOptions;
+  /** ICE 配置 */
+  ice?: IceOptions;
 }
 
 /**
@@ -89,14 +107,19 @@ export interface RtcBaseOptions {
  */
 export type MediaKind = 'audio' | 'video' | 'all';
 
+/** 渲染目标元素 */
+export type MediaRenderTarget = HTMLVideoElement | HTMLAudioElement | HTMLCanvasElement;
+
 /**
  * 拉流选项
  */
 export interface RtcPlayerOptions extends RtcBaseOptions {
   /** 自定义拉流信令提供者（优先于 api） */
   signaling?: PlayerSignalingProvider;
-  /** 目标渲染元素（可选，自动绑定远端流） */
-  target?: HTMLVideoElement | HTMLAudioElement;
+  /** 目标渲染元素（自动绑定远端流）；支持 video/audio/canvas */
+  target?: MediaRenderTarget;
+  /** 目标是否静音（默认: true） */
+  muted?: boolean;
   /** 媒体类型配置（默认: 'all'） */
   media?: MediaKind;
   /** 插件列表 */
@@ -111,8 +134,10 @@ export interface RtcPublisherOptions extends RtcBaseOptions {
   signaling?: PublisherSignalingProvider;
   /** 媒体源 */
   source: MediaSource;
-  /** 预览目标元素（可选） */
-  target?: HTMLVideoElement | HTMLAudioElement;
+  /** 预览目标元素；支持 video/audio/canvas */
+  target?: MediaRenderTarget;
+  /** 目标是否静音（默认: true） */
+  muted?: boolean;
   /** 插件列表 */
   plugins?: RtcPublisherPlugin[];
 }

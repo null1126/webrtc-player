@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
-import { RtcPlayer, RtcState } from '@webrtc-player/core';
+import {
+  RtcPlayer,
+  RtcState,
+  type MediaRenderTarget,
+  type RtcPlayerPlugin,
+} from '@webrtc-player/core';
 import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
 import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
 import type { PerformanceData } from '@webrtc-player/plugin-performance';
@@ -7,6 +12,8 @@ import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
 import { LogPanel, useLogs } from '../LogPanel';
 import './index.css';
+
+type PreviewContainerType = 'video' | 'canvas';
 
 interface StreamPlayerProps {
   streamUrl: string;
@@ -22,9 +29,11 @@ export function StreamPlayer({
   onApiUrlChange,
 }: StreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerRef = useRef<RtcPlayer | null>(null);
 
   const [state, setState] = useState<RtcState>(RtcState.CLOSED);
+  const [previewContainer, setPreviewContainer] = useState<PreviewContainerType>('video');
   const [perfData, setPerfData] = useState<PerformanceData | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const { logs, appendLog } = useLogs();
@@ -38,15 +47,24 @@ export function StreamPlayer({
       }
     });
 
-    const performancePlugin = createPerformancePlugin({ interval: 1000 }, (data) => {
-      setPerfData(data);
-    });
+    const performancePlugin: RtcPlayerPlugin = createPerformancePlugin(
+      { interval: 1000 },
+      (data) => {
+        setPerfData(data);
+      }
+    );
+
+    const target: MediaRenderTarget | undefined =
+      previewContainer === 'canvas'
+        ? (canvasRef.current ?? undefined)
+        : (videoRef.current ?? undefined);
 
     const player = new RtcPlayer({
       url: streamUrl,
       api: apiUrl,
-      target: videoRef.current ?? undefined,
+      target,
       media: 'all',
+      muted: false,
       reconnect: {
         enabled: true,
         exponential: true,
@@ -159,6 +177,23 @@ export function StreamPlayer({
           </div>
         )}
 
+        {/* 预览容器 */}
+        <div className="sp-field">
+          <label className="field-label">预览容器 / Container</label>
+          <div className="sp-quick-switch-list">
+            {(['video', 'canvas'] as PreviewContainerType[]).map((type) => (
+              <button
+                key={type}
+                className={`sp-quick-switch-btn${previewContainer === type ? ' sp-quick-switch-btn--active' : ''}`}
+                onClick={() => setPreviewContainer(type)}
+                disabled={active}
+              >
+                {type === 'video' ? 'Video' : 'Canvas'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 视频区域 */}
         <div className="sp-preview">
           <div className="sp-preview-header">
@@ -170,7 +205,12 @@ export function StreamPlayer({
               </span>
             )}
           </div>
-          <StreamVideo ref={videoRef} label="拉流画面" muted />
+          <StreamVideo
+            ref={previewContainer === 'canvas' ? canvasRef : videoRef}
+            containerType={previewContainer}
+            label={previewContainer === 'canvas' ? '拉流画面（Canvas）' : '拉流画面（Video）'}
+            muted
+          />
           {perfData && (
             <div className="perf-panel">
               <div className="perf-panel-title">性能监控</div>

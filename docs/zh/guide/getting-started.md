@@ -1,23 +1,39 @@
 ---
 title: WebRTC Player - 快速开始
-description: 快速集成 WebRTC Player 到你的项目中，支持拉流播放和推流发布。
+description: 通过最小示例快速完成 WebRTC Player 的播放与推流接入，并掌握主流框架集成方式。
 ---
 
 # 快速开始
 
+本页提供一条面向生产实践的最短接入路径：先完成播放/推流最小闭环，再按需接入框架层封装。
+
 ## 环境要求
 
+在开始前，请确认以下条件：
+
 - 现代浏览器（Chrome 56+、Firefox 44+、Safari 11+、Edge 79+）
-- 支持 HTTPS（生产环境）或 localhost（开发环境）
-- 流媒体服务器支持 WebRTC 协议（SRS、ZLMediaKit、monibuca 等）
+- 生产环境使用 HTTPS，开发环境可使用 `localhost`
+- 流媒体服务端支持 WebRTC（如 SRS、ZLMediaKit、monibuca）
 
 ## 安装
 
-```bash
+推荐使用与你现有工程一致的包管理器，避免锁文件与依赖树混用。
+
+::: code-group
+
+```bash [pnpm]
 pnpm add @webrtc-player/core
-# 或
+```
+
+```bash [npm]
 npm install @webrtc-player/core
 ```
+
+```bash [yarn]
+yarn add @webrtc-player/core
+```
+
+:::
 
 ## 拉流（播放）
 
@@ -27,13 +43,13 @@ import { RtcPlayer } from '@webrtc-player/core';
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: document.getElementById('video') as HTMLVideoElement,
+  target: document.getElementById('video') as HTMLVideoElement,
 });
 
-player.on('state', (state) => console.log('状态:', state));
-player.on('error', (error) => console.error('错误:', error));
+player.on('state', (state) => console.log('播放状态:', state));
+player.on('error', (error) => console.error('播放错误:', error));
 
-player.play();
+await player.play();
 ```
 
 ## 推流（发布）
@@ -45,124 +61,38 @@ const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
-  video: document.getElementById('preview') as HTMLVideoElement,
+  target: document.getElementById('preview') as HTMLVideoElement,
 });
 
-publisher.on('streamstart', () => console.log('推流开始'));
-publisher.on('error', (error) => console.error('错误:', error));
+publisher.on('streamstart', () => console.log('推流已开始'));
+publisher.on('error', (error) => console.error('推流错误:', error));
 
-publisher.start();
+await publisher.start();
 ```
 
 ## 支持的媒体源
 
-| 类型     | 配置                              | 说明             |
-| -------- | --------------------------------- | ---------------- |
-| 摄像头   | `{ type: 'camera', audio: true }` | 视频 + 音频      |
-| 屏幕录制 | `{ type: 'screen', audio: true }` | 含系统音频       |
-| 麦克风   | `{ type: 'microphone' }`          | 仅音频           |
-| 自定义流 | `{ type: 'custom', stream }`      | 已有 MediaStream |
+| 类型     | 配置                              | 说明               |
+| -------- | --------------------------------- | ------------------ |
+| 摄像头   | `{ type: 'camera', audio: true }` | 视频 + 音频        |
+| 屏幕录制 | `{ type: 'screen', audio: true }` | 可携带系统音频     |
+| 麦克风   | `{ type: 'microphone' }`          | 仅采集音频         |
+| 自定义流 | `{ type: 'custom', stream }`      | 已有 `MediaStream` |
 
-## React 使用
+## 框架集成
 
-```typescript
-// 拉流
-function VideoPlayer() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+- [React 集成](./frameworks/react)
+- [Vue 集成](./frameworks/vue)
 
-  useEffect(() => {
-    const player = new RtcPlayer({
-      url: 'webrtc://localhost/live/livestream',
-      api: 'http://localhost:1985/rtc/v1/play/',
-      video: videoRef.current,
-    });
-    player.play();
-    return () => player.destroy();
-  }, []);
+## 工程建议
 
-  return <video ref={videoRef} controls muted />;
-}
-
-// 推流
-function StreamPublisher() {
-  const previewRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const publisher = new RtcPublisher({
-      url: 'webrtc://localhost/live/pushstream',
-      api: 'http://localhost:1985/rtc/v1/publish/',
-      source: { type: 'camera', audio: true },
-      video: previewRef.current,
-    });
-    publisher.start();
-    return () => publisher.destroy();
-  }, []);
-
-  return <video ref={previewRef} muted autoPlay playsInline />;
-}
-```
-
-## Vue 使用
-
-```vue
-<!-- 拉流 -->
-<template>
-  <video ref="videoRef" controls muted />
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { RtcPlayer } from '@webrtc-player/core';
-
-const videoRef = ref<HTMLVideoElement | null>(null);
-let player: RtcPlayer | null = null;
-
-onMounted(() => {
-  player = new RtcPlayer({
-    url: 'webrtc://localhost/live/livestream',
-    api: 'http://localhost:1985/rtc/v1/play/',
-    video: videoRef.value!,
-  });
-  player.play();
-});
-
-onUnmounted(() => {
-  player?.destroy();
-});
-</script>
-```
-
-```vue
-<!-- 推流 -->
-<template>
-  <video ref="previewRef" muted autoplay playsinline />
-</template>
-
-<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { RtcPublisher } from '@webrtc-player/core';
-
-const previewRef = ref<HTMLVideoElement | null>(null);
-let publisher: RtcPublisher | null = null;
-
-onMounted(() => {
-  publisher = new RtcPublisher({
-    url: 'webrtc://localhost/live/pushstream',
-    api: 'http://localhost:1985/rtc/v1/publish/',
-    source: { type: 'camera', audio: true },
-    video: previewRef.value!,
-  });
-  publisher.start();
-});
-
-onUnmounted(() => {
-  publisher?.destroy();
-});
-</script>
-```
+- 在业务层统一封装播放器/推流器生命周期，避免实例泄漏
+- 基于 `state` 与 `error` 事件建立可观测日志
+- 推流前优先进行权限预检，并对拒绝场景做清晰提示
 
 ## 下一步
 
-- [事件监听](./events) - 了解更多事件类型
-- [推流指南](./publisher) - 摄像头/屏幕推流
-- [API 文档](../api/) - 配置选项详解
+- [事件监听](./events) - 了解完整事件模型
+- [推流指南](./publisher) - 掌握媒体源切换与采集控制
+- [自定义信令](./custom-signaling) - 对接企业内网或自定义网关
+- [API 文档](../api/) - 查看全部配置项

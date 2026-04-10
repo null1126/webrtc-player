@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
-import { RtcPublisher, RtcState, type MediaSource } from '@webrtc-player/core';
+import {
+  RtcPublisher,
+  RtcState,
+  type MediaRenderTarget,
+  type MediaSource,
+} from '@webrtc-player/core';
 import { createPublisherLoggerPlugin } from '@webrtc-player/plugin-logger';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
@@ -7,6 +12,7 @@ import { LogPanel, useLogs } from '../LogPanel';
 import './index.css';
 
 export type PublisherSourceType = 'camera' | 'screen';
+type PreviewContainerType = 'video' | 'canvas';
 
 interface StreamPublisherProps {
   streamUrl: string;
@@ -22,9 +28,11 @@ export function StreamPublisher({
   onApiUrlChange,
 }: StreamPublisherProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const publisherRef = useRef<RtcPublisher | null>(null);
 
   const [state, setState] = useState<RtcState>(RtcState.CLOSED);
+  const [previewContainer, setPreviewContainer] = useState<PreviewContainerType>('video');
   const [sourceType, setSourceType] = useState<PublisherSourceType>('camera');
   const [withAudio, setWithAudio] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -62,11 +70,16 @@ export function StreamPublisher({
       }
     });
 
+    const target: MediaRenderTarget | undefined =
+      previewContainer === 'canvas'
+        ? (canvasRef.current ?? undefined)
+        : (videoRef.current ?? undefined);
+
     const pub = new RtcPublisher({
       url: streamUrl,
       api: apiUrl,
       source,
-      target: videoRef.current ?? undefined,
+      target,
       plugins: [loggerPlugin],
     });
 
@@ -181,6 +194,23 @@ export function StreamPublisher({
           </label>
         </div>
 
+        {/* 预览容器 */}
+        <div className="field">
+          <FieldLabel>预览容器 / Container</FieldLabel>
+          <div className="field-row">
+            {(['video', 'canvas'] as PreviewContainerType[]).map((type) => (
+              <SourceBtn
+                key={type}
+                active={previewContainer === type && !active}
+                selected={previewContainer === type}
+                label={type === 'video' ? 'Video' : 'Canvas'}
+                onClick={() => setPreviewContainer(type)}
+                disabled={active}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* 视频预览 */}
         <div className="preview-section">
           <div className="preview-header">
@@ -192,7 +222,12 @@ export function StreamPublisher({
               </span>
             )}
           </div>
-          <StreamVideo ref={videoRef} label="本地预览" muted />
+          <StreamVideo
+            ref={previewContainer === 'canvas' ? canvasRef : videoRef}
+            containerType={previewContainer}
+            label={previewContainer === 'canvas' ? '本地预览（Canvas）' : '本地预览（Video）'}
+            muted
+          />
           {permissionDenied && (
             <div className="permission-alert">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

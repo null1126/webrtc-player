@@ -47,6 +47,11 @@ export abstract class RtcBase<
   /** disconnected 兜底定时器 */
   private _disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /** 是否等待 ICE 收集完成后再交换 SDP */
+  protected _waitForIceComplete = true;
+  /** 等待 ICE 收集完成超时时间（毫秒） */
+  protected _iceGatheringTimeout = 3000;
+
   constructor(
     options: RtcBaseOptions,
     signaling: TSignaling,
@@ -60,6 +65,9 @@ export abstract class RtcBase<
     this._reconnectEnabled = reconnectOptions?.enabled ?? true;
     this._reconnectMaxRetries = reconnectOptions?.maxRetries ?? 5;
     this._disconnectedTimeout = reconnectOptions?.disconnectedTimeout ?? 5000;
+
+    this._waitForIceComplete = options.ice?.waitForComplete ?? true;
+    this._iceGatheringTimeout = options.ice?.gatheringTimeout ?? 3000;
 
     this._retryController = new RetryController(
       {
@@ -205,6 +213,53 @@ export abstract class RtcBase<
    * ICE 收集状态变更扩展点
    */
   protected onIceGatheringStateChanged(_state: RTCIceGatheringState): void {}
+
+  /**
+   * 等待 ICE 收集完成（用于非 Trickle ICE 场景）
+   * @param timeoutMs 最长等待时间，超时后继续流程，避免卡死
+   */
+  protected waitForIceGatheringComplete(timeoutMs = this._iceGatheringTimeout): Promise<void> {
+    if (!this._waitForIceComplete || !this.pc) {
+      return Promise.resolve();
+    }
+
+    const pc = this.pc;
+
+    if (pc.iceGatheringState === 'complete') {
+      return Promise.resolve();
+    }
+
+    // 非标准实现/测试桩不支持事件监听时，直接跳过等待
+    if (typeof pc.addEventListener !== 'function' || typeof pc.removeEventListener !== 'function') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        pc.removeEventListener('icegatheringstatechange', onStateChange);
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+
+      const finish = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onStateChange = () => {
+        if (pc.iceGatheringState === 'complete') {
+          finish();
+        }
+      };
+
+      pc.addEventListener('icegatheringstatechange', onStateChange);
+      timer = setTimeout(finish, timeoutMs);
+    });
+  }
 
   /**
    * 子类实现：处理远端轨道事件

@@ -1,28 +1,10 @@
 ---
 title: WebRTC Player - RtcPlayerOptions
-description: RtcPlayer playback player configuration options.
+description: RtcPlayerOptions has been merged into the RtcPlayer API page.
 ---
 
 # RtcPlayerOptions
 
-## Properties
+The `RtcPlayerOptions` documentation has been merged into [RtcPlayer](./) to keep class API and options in one place.
 
-| Property | Type                                   | Required | Description               |
-| -------- | -------------------------------------- | -------- | ------------------------- |
-| `url`    | `string`                               | Yes      | WebRTC playback URL       |
-| `api`    | `string`                               | Yes      | Signaling server URL      |
-| `target` | `HTMLVideoElement \| HTMLAudioElement` | No       | Render target element     |
-| `media`  | `'audio' \| 'video' \| 'all'`          | No       | Media type, default `all` |
-| `config` | `RTCConfiguration`                     | No       | ICE server config         |
-
-## Example
-
-```typescript
-import { RtcPlayer } from '@webrtc-player/core';
-
-const player = new RtcPlayer({
-  url: 'webrtc://localhost/live/livestream',
-  api: 'http://localhost:1985/rtc/v1/play/',
-  target: videoElement,
-});
-```
+Please see [RtcPlayer > Options (RtcPlayerOptions)](./#options-rtcplayeroptions).

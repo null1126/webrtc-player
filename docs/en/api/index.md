@@ -13,6 +13,40 @@ Playback player core class.
 new RtcPlayer(options: RtcPlayerOptions)
 ```
 
+## Options (RtcPlayerOptions)
+
+### Properties
+
+| Property    | Type                                                        | Required | Description                                      |
+| ----------- | ----------------------------------------------------------- | -------- | ------------------------------------------------ |
+| `url`       | `string`                                                    | Yes      | WebRTC playback URL                              |
+| `api`       | `string`                                                    | Yes      | Signaling server URL                             |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement \| HTMLCanvasElement` | No       | Render target element (video/audio/canvas)       |
+| `muted`     | `boolean`                                                   | No       | Whether target element is muted, default `true`  |
+| `media`     | `'audio' \| 'video' \| 'all'`                               | No       | Media type, default `all`                        |
+| `config`    | `RTCConfiguration`                                          | No       | WebRTC connection config                         |
+| `reconnect` | `ReconnectOptions`                                          | No       | Auto reconnect behavior                          |
+| `ice`       | `IceOptions`                                                | No       | ICE behavior options (wait strategy and timeout) |
+
+### ReconnectOptions
+
+| Property              | Type      | Required | Description                                                                                |
+| --------------------- | --------- | -------- | ------------------------------------------------------------------------------------------ |
+| `enabled`             | `boolean` | No       | Enable auto reconnect, default `false`                                                     |
+| `maxRetries`          | `number`  | No       | Maximum retry attempts, default `5`                                                        |
+| `interval`            | `number`  | No       | Retry interval in ms; initial interval when exponential backoff is enabled, default `2000` |
+| `exponential`         | `boolean` | No       | Enable exponential backoff, default `false`                                                |
+| `maxInterval`         | `number`  | No       | Maximum retry interval in ms                                                               |
+| `jitterRatio`         | `number`  | No       | Random jitter ratio (0~1)                                                                  |
+| `disconnectedTimeout` | `number`  | No       | Fallback reconnect delay after entering `disconnected` (ms), default `5000`                |
+
+### IceOptions
+
+| Property           | Type      | Required | Description                                                                       |
+| ------------------ | --------- | -------- | --------------------------------------------------------------------------------- |
+| `waitForComplete`  | `boolean` | No       | Whether to wait for ICE gathering to complete before SDP exchange, default `true` |
+| `gatheringTimeout` | `number`  | No       | ICE gathering timeout in ms, default `3000`                                       |
+
 ## Methods
 
 ### play() <Badge type="tip" text="async" />
@@ -61,11 +95,16 @@ player.destroy();
 
 ## Events
 
-| Event   | Description            |
-| ------- | ---------------------- |
-| `track` | Remote stream received |
-| `state` | Connection state       |
-| `error` | Error                  |
+| Event                | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `track`              | Remote stream received                         |
+| `state`              | RTC state changed (`connecting/connected/...`) |
+| `error`              | Runtime error                                  |
+| `icecandidate`       | Local ICE candidate generated                  |
+| `iceconnectionstate` | ICE connection state updated                   |
+| `icegatheringstate`  | ICE gathering state updated                    |
+| `reconnecting`       | Auto-reconnect attempt started                 |
+| `reconnectfailed`    | Auto-reconnect exhausted (max retries reached) |
 
 ## Usage Example
 
@@ -75,7 +114,7 @@ import { RtcPlayer } from '@webrtc-player/core';
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
-  video: videoElement,
+  target: videoElement,
 });
 
 player.on('track', ({ stream }) => (video.srcObject = stream));

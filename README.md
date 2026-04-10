@@ -15,6 +15,8 @@
 - **自定义信令** — 内置 HTTP 信令提供者；通过 `SignalingProvider` 接口可对接任意信令服务器
 - **多源采集** — 支持摄像头、麦克风、屏幕录制、自定义 MediaStream
 - **流切换** — 无需重建播放器实例即可切换视频源
+- **连接策略可配置** — 支持自动重连与 ICE 行为配置
+- **灵活渲染目标** — 支持 video/audio/canvas 作为目标元素，并可配置静音
 - **插件系统** — 通过插件机制扩展播放器，支持日志记录、性能监控等开箱即用功能
 - **零外部依赖** — 无第三方运行时依赖，仅使用标准 Web API
 
@@ -43,6 +45,16 @@ const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
   api: 'http://localhost:1985/rtc/v1/play/',
   target: document.getElementById('video') as HTMLVideoElement,
+  muted: true,
+  reconnect: {
+    enabled: true,
+    maxRetries: 6,
+    exponential: true,
+  },
+  ice: {
+    waitForComplete: true,
+    gatheringTimeout: 3000,
+  },
 });
 
 player.on('state', (state) => {
@@ -70,6 +82,14 @@ const publisher = new RtcPublisher({
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
   target: document.getElementById('preview') as HTMLVideoElement,
+  muted: true,
+  reconnect: {
+    enabled: true,
+    maxRetries: 5,
+  },
+  ice: {
+    waitForComplete: false,
+  },
 });
 
 publisher.on('streamstart', ({ stream }) => {
@@ -114,14 +134,17 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayerOptions
 
-| 属性        | 类型                                   | 必填 | 说明                                    |
-| ----------- | -------------------------------------- | ---- | --------------------------------------- |
-| `url`       | `string`                               | 是   | WebRTC 流地址                           |
-| `api`       | `string`                               | 是   | 信令服务器 HTTP/HTTPS 地址              |
-| `target`    | `HTMLVideoElement \| HTMLAudioElement` | 否   | 渲染元素，自动绑定远端流                |
-| `media`     | `MediaKind`                            | 否   | 媒体类型：`'audio'`、`'video'`、`'all'` |
-| `signaling` | `SignalingProvider`                    | 否   | 自定义信令提供者（优先于 `api`）        |
-| `config`    | `RTCConfiguration`                     | 否   | 自定义 RTCConfiguration                 |
+| 属性        | 类型                                                        | 必填 | 说明                                    |
+| ----------- | ----------------------------------------------------------- | ---- | --------------------------------------- |
+| `url`       | `string`                                                    | 是   | WebRTC 流地址                           |
+| `api`       | `string`                                                    | 是   | 信令服务器 HTTP/HTTPS 地址              |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement \| HTMLCanvasElement` | 否   | 渲染目标元素，支持 video/audio/canvas   |
+| `muted`     | `boolean`                                                   | 否   | 目标元素是否静音（默认 `true`）         |
+| `media`     | `MediaKind`                                                 | 否   | 媒体类型：`'audio'`、`'video'`、`'all'` |
+| `signaling` | `SignalingProvider`                                         | 否   | 自定义信令提供者（优先于 `api`）        |
+| `config`    | `RTCConfiguration`                                          | 否   | 自定义 RTCConfiguration                 |
+| `reconnect` | `ReconnectOptions`                                          | 否   | 自动重连配置                            |
+| `ice`       | `IceOptions`                                                | 否   | ICE 行为配置（等待收集完成、收集超时）  |
 
 #### RtcPlayer 方法
 
@@ -135,14 +158,16 @@ new RtcPlayer(options: RtcPlayerOptions)
 
 #### RtcPlayer 事件
 
-| 事件                 | 载荷                                            | 说明             |
-| -------------------- | ----------------------------------------------- | ---------------- |
-| `state`              | `RtcState`                                      | 连接状态变更     |
-| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }` | 收到新的媒体轨道 |
-| `icecandidate`       | `RTCIceCandidate`                               | ICE 候选者已收集 |
-| `iceconnectionstate` | `RTCIceConnectionState`                         | ICE 连接状态变更 |
-| `icegatheringstate`  | `RTCIceGatheringState`                          | ICE 收集状态变更 |
-| `error`              | `string`                                        | 播放器发生错误   |
+| 事件                 | 载荷                                                           | 说明                 |
+| -------------------- | -------------------------------------------------------------- | -------------------- |
+| `state`              | `RtcState`                                                     | 连接状态变更         |
+| `track`              | `{ stream: MediaStream; event: RTCTrackEvent }`                | 收到新的媒体轨道     |
+| `icecandidate`       | `RTCIceCandidate`                                              | ICE 候选者已收集     |
+| `iceconnectionstate` | `RTCIceConnectionState`                                        | ICE 连接状态变更     |
+| `icegatheringstate`  | `RTCIceGatheringState`                                         | ICE 收集状态变更     |
+| `reconnecting`       | `{ retryCount: number; maxRetries: number; interval: number }` | 正在重连             |
+| `reconnectfailed`    | `{ maxRetries: number }`                                       | 重连失败（达到上限） |
+| `error`              | `string`                                                       | 播放器发生错误       |
 
 ---
 
@@ -154,14 +179,17 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisherOptions
 
-| 属性        | 类型                                   | 必填 | 说明                       |
-| ----------- | -------------------------------------- | ---- | -------------------------- |
-| `url`       | `string`                               | 是   | WebRTC 流地址              |
-| `api`       | `string`                               | 是   | 信令服务器 HTTP/HTTPS 地址 |
-| `source`    | `MediaSource`                          | 是   | 媒体源配置                 |
-| `target`    | `HTMLVideoElement \| HTMLAudioElement` | 否   | 预览渲染元素               |
-| `signaling` | `SignalingProvider`                    | 否   | 自定义信令提供者           |
-| `config`    | `RTCConfiguration`                     | 否   | 自定义 RTCConfiguration    |
+| 属性        | 类型                                                        | 必填 | 说明                                  |
+| ----------- | ----------------------------------------------------------- | ---- | ------------------------------------- |
+| `url`       | `string`                                                    | 是   | WebRTC 流地址                         |
+| `api`       | `string`                                                    | 是   | 信令服务器 HTTP/HTTPS 地址            |
+| `source`    | `MediaSource`                                               | 是   | 媒体源配置                            |
+| `target`    | `HTMLVideoElement \| HTMLAudioElement \| HTMLCanvasElement` | 否   | 预览目标元素，支持 video/audio/canvas |
+| `muted`     | `boolean`                                                   | 否   | 目标元素是否静音（默认 `true`）       |
+| `signaling` | `SignalingProvider`                                         | 否   | 自定义信令提供者                      |
+| `config`    | `RTCConfiguration`                                          | 否   | 自定义 RTCConfiguration               |
+| `reconnect` | `ReconnectOptions`                                          | 否   | 自动重连配置                          |
+| `ice`       | `IceOptions`                                                | 否   | ICE 行为配置                          |
 
 #### RtcPublisher 方法
 
@@ -174,15 +202,17 @@ new RtcPublisher(options: RtcPublisherOptions)
 
 #### RtcPublisher 事件
 
-| 事件               | 载荷                                            | 说明                 |
-| ------------------ | ----------------------------------------------- | -------------------- |
-| `streamstart`      | `{ stream: MediaStream }`                       | 推流开始             |
-| `streamstop`       | `void`                                          | 推流停止             |
-| `sourcechange`     | `MediaSource`                                   | 媒体源已切换         |
-| `track`            | `{ stream: MediaStream; event: RTCTrackEvent }` | 收到远端轨道（回显） |
-| `permissiondenied` | `{ source: MediaSource; error: Error }`         | 媒体权限被拒绝       |
-| `state`            | `RtcState`                                      | 连接状态变更         |
-| `error`            | `string`                                        | 推流器发生错误       |
+| 事件               | 载荷                                                           | 说明                 |
+| ------------------ | -------------------------------------------------------------- | -------------------- |
+| `streamstart`      | `{ stream: MediaStream }`                                      | 推流开始             |
+| `streamstop`       | `void`                                                         | 推流停止             |
+| `sourcechange`     | `MediaSource`                                                  | 媒体源已切换         |
+| `track`            | `{ stream: MediaStream; event: RTCTrackEvent }`                | 收到远端轨道（回显） |
+| `permissiondenied` | `{ source: MediaSource; error: Error }`                        | 媒体权限被拒绝       |
+| `state`            | `RtcState`                                                     | 连接状态变更         |
+| `reconnecting`     | `{ retryCount: number; maxRetries: number; interval: number }` | 正在重连             |
+| `reconnectfailed`  | `{ maxRetries: number }`                                       | 重连失败（达到上限） |
+| `error`            | `string`                                                       | 推流器发生错误       |
 
 ---
 

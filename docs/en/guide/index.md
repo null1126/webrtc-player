@@ -1,27 +1,29 @@
 ---
-title: WebRTC Player - Introduction
-description: WebRTC Player is a lightweight WebRTC video player library supporting both playback and publishing.
+title: WebRTC Player - Guide Overview
+description: WebRTC Player guide covering core capabilities, integration paths, and production-oriented practices.
 ---
 
-# Introduction
+# Guide Overview
 
-WebRTC Player is a lightweight WebRTC video player library supporting both **playback** and **publishing**.
+WebRTC Player is a lightweight WebRTC SDK for real-time media scenarios, providing a unified API for both **playback** and **publishing**.
 
-## Features
+This guide is designed for teams that need fast adoption with reliable production behavior. It focuses on:
 
-- **Playback & Publishing** - One library for both
-- **Protocol Compatible** - Works with SRS, ZLMediaKit, monibuca, etc.
-- **Event-Driven** - Complete event system
-- **Multi-Source** - Camera, microphone, screen recording
-- **High Performance** - No dependencies, small bundle
-- **Cross-Platform** - Chrome, Firefox, Safari, Edge
-- **Plugin System** - Rich extensibility via plugins; logging, performance monitoring, and more available out of the box
+- Quick integration with minimal, runnable examples
+- Event model and state handling
+- Publishing workflow and media source control
+- Plugin-based extensibility
+- Custom signaling integration patterns
 
-## Installation
+## Core Features
 
-```bash
-pnpm add @webrtc-player/core
-```
+- **Unified API design**: `RtcPlayer` and `RtcPublisher` share a consistent lifecycle and event style
+- **Broad server compatibility**: Works with common WebRTC servers such as SRS, ZLMediaKit, and monibuca
+- **Comprehensive event model**: Covers state transitions, errors, track changes, and permission signals
+- **Multi-source capture**: Camera, microphone, screen sharing, and custom `MediaStream`
+- **Canvas rendering support**: Render video frames to Canvas for custom drawing, frame processing, and snapshot workflows
+- **Plugin system**: Extensible architecture for logging, performance telemetry, and business-specific features
+- **Cross-browser support**: Compatible with modern Chrome, Firefox, Safari, and Edge
 
 ## Architecture
 
@@ -29,8 +31,8 @@ pnpm add @webrtc-player/core
 ┌─────────────────────────────────────┐
 │            WebRTC Player            │
 ├───────────────┬─────────────────────┤
-│   RtcPlayer  │   RtcPublisher      │
-│  (Playback)  │   (Publishing)      │
+│   RtcPlayer   │   RtcPublisher      │
+│   (Playback)  │   (Publishing)      │
 └───────────────┴─────────────────────┘
 ```
 

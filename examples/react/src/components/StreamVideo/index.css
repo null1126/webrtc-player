@@ -9,7 +9,8 @@
 }
 
 /* ─── Video element ─── */
-.stream-video video {
+.stream-video video,
+.stream-video canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;

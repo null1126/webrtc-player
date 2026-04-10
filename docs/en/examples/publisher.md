@@ -1,50 +1,102 @@
 ---
 title: WebRTC Player - Publishing Examples
-description: WebRTC Player publishing examples.
+description: Publishing examples for camera, screen sharing, custom streams, audio-only workflows, and source switching.
 ---
 
 # Publishing Examples
 
-## Camera Publishing
+This page focuses on common `RtcPublisher` scenarios:
+
+- Publish camera + microphone
+- Publish screen sharing
+- Publish microphone-only audio
+- Publish custom `MediaStream`
+- Switch media source during publishing
+
+## 1) Camera + microphone publishing
 
 ```typescript
+import { RtcPublisher } from '@webrtc-player/core';
+
 const publisher = new RtcPublisher({
-  url: 'webrtc://localhost/live/mystream',
+  url: 'webrtc://localhost/live/camera-stream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'camera', audio: true },
-  video: document.getElementById('preview') as HTMLVideoElement,
+  target: document.getElementById('preview') as HTMLVideoElement,
 });
 
-publisher.on('streamstart', () => console.log('Stream started'));
-publisher.start();
+publisher.on('streamstart', () => console.log('Camera publishing started'));
+publisher.on('error', (error) => console.error('Publishing error:', error));
+
+await publisher.start();
 ```
 
-## Screen Recording
+## 2) Screen sharing publishing
 
 ```typescript
-const publisher = new RtcPublisher({
-  url: 'webrtc://localhost/live/screen',
+const screenPublisher = new RtcPublisher({
+  url: 'webrtc://localhost/live/screen-stream',
   api: 'http://localhost:1985/rtc/v1/publish/',
   source: { type: 'screen', audio: true },
-  video: preview,
+  target: document.getElementById('screen-preview') as HTMLVideoElement,
 });
 
-publisher.on('permissiondenied', ({ error }) => alert('Screen permission denied'));
-publisher.start();
+screenPublisher.on('permissiondenied', () => {
+  alert('Screen capture permission denied');
+});
+
+await screenPublisher.start();
 ```
 
-## Switch Input Source
+## 3) Microphone-only publishing (render to audio)
+
+```typescript
+const micPublisher = new RtcPublisher({
+  url: 'webrtc://localhost/live/mic-stream',
+  api: 'http://localhost:1985/rtc/v1/publish/',
+  source: { type: 'microphone' },
+  target: document.getElementById('mic-preview') as HTMLAudioElement,
+});
+
+await micPublisher.start();
+```
+
+## 4) Custom stream publishing (`custom` MediaStream)
+
+If your app already has a composed stream (e.g., canvas capture, mixed tracks, or WebAudio-processed output), publish it directly:
+
+```typescript
+const customStream = await navigator.mediaDevices.getUserMedia({
+  video: { width: 1280, height: 720, frameRate: 30 },
+  audio: true,
+});
+
+const customPublisher = new RtcPublisher({
+  url: 'webrtc://localhost/live/custom-stream',
+  api: 'http://localhost:1985/rtc/v1/publish/',
+  source: { type: 'custom', stream: customStream },
+  target: document.getElementById('preview') as HTMLVideoElement,
+});
+
+await customPublisher.start();
+```
+
+## 5) Switch media source while publishing
 
 ```typescript
 // Start with camera
-publisher.start();
+await publisher.start();
 
-// Switch to screen during publishing
-publisher.switchSource({ type: 'screen', audio: true });
+// Switch to screen sharing
+await publisher.switchSource({ type: 'screen', audio: true });
+
+// Switch back to camera
+await publisher.switchSource({ type: 'camera', audio: true });
 ```
 
-## Notes
+## Best Practices
 
-1. User permission required for camera/screen access
-2. HTTPS required in production
-3. Call `publisher.destroy()` on unmount
+1. Ask for permissions early and surface clear fallback messages
+2. Use HTTPS in production to avoid blocked media-device access
+3. Call `publisher.destroy()` on page/component teardown
+4. For custom streams, stop local tracks when publishing ends
