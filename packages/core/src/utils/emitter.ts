@@ -1,8 +1,16 @@
 /**
- * 事件发射器
+ * 轻量级类型安全事件发射器。
+ *
+ * 特性：
+ * - 通过泛型 `TEventMap` 约束事件名与 payload 类型
+ * - 支持 `on / off / once / emit`
+ * - 不依赖外部运行时，适合 SDK 内部基础设施
+ *
+ * @typeParam TEventMap 事件映射类型，键为事件名，值为事件参数类型
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class EventEmitter<TEventMap extends Record<string, any>> {
+  /** 事件监听表：eventName -> listeners[] */
   private events: Map<keyof TEventMap, Array<(data: unknown) => void>> = new Map();
 
   /**

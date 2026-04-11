@@ -6,21 +6,39 @@ import type {
 } from '@webrtc-player/core/plugins/types';
 import type { FpsStats, NetworkStats, PerformanceData, PerformancePluginOptions } from './types';
 
+/** 统一宿主实例类型：播放器或推流器 */
 type PerfInstance = RtcPlayerPluginInstance | RtcPublisherPluginInstance;
 
+/**
+ * 类型守卫：判断是否为播放器实例。
+ *
+ * @param instance 插件宿主实例
+ * @returns 是否为 RtcPlayerPluginInstance
+ */
 const isPlayerInstance = (instance: PerfInstance): instance is RtcPlayerPluginInstance => {
   return 'getStreamUrl' in instance;
 };
 
+/**
+ * 根据宿主实例推导角色。
+ *
+ * @param instance 插件宿主实例
+ * @returns 性能数据角色标识
+ */
 const getRole = (instance: PerfInstance): PerformanceData['role'] => {
   return isPlayerInstance(instance) ? 'player' : 'publisher';
 };
 
 /**
- * 创建性能监控插件（同时支持拉流与推流）
+ * 创建性能监控插件（同时支持拉流与推流）。
  *
- * @param options  配置选项
- * @param onReport 性能数据回调，插件会定期调用它
+ * 指标策略：
+ * - FPS：优先使用 requestVideoFrameCallback，回退到 WebRTC stats 差分
+ * - 网络：基于 getStats 计算码率、丢包率、RTT、jitter 等
+ *
+ * @param options 插件配置（采样周期等）
+ * @param onReport 性能数据回调
+ * @returns 同时兼容 Player/Publisher 的插件实例
  */
 export function createPerformancePlugin(
   options: PerformancePluginOptions = {},
@@ -28,28 +46,48 @@ export function createPerformancePlugin(
 ): RtcPlayerPlugin & RtcPublisherPlugin {
   const { interval = 1000 } = options;
 
+  /** 当前挂载的宿主实例 */
   let hostInstance: PerfInstance | null = null;
+  /** 周期采样定时器 */
   let statsTimer: ReturnType<typeof setInterval> | null = null;
 
-  // 优先使用真实视频帧回调（requestVideoFrameCallback）
+  /** requestVideoFrameCallback 回调 ID */
   let videoFrameCbId: number | null = null;
+  /** 当前追踪的视频元素 */
   let trackedVideoEl: HTMLVideoElement | null = null;
+  /** 当前窗口累计帧数 */
   let frameCount = 0;
+  /** 上次 FPS 汇报时间 */
   let lastReportTime = 0;
 
-  // FPS 兜底（无法使用 requestVideoFrameCallback 时）
+  /** FPS fallback 基线：解码帧 */
   let lastDecodedFrames = 0;
+  /** FPS fallback 基线：编码帧 */
   let lastEncodedFrames = 0;
 
-  // 网络差分基线
+  /** 网络差分基线：发送字节 */
   let lastBytesSent = 0;
+  /** 网络差分基线：接收字节 */
   let lastBytesReceived = 0;
+  /** 网络差分基线时间 */
   let lastTimestamp = 0;
 
+  /**
+   * 判断视频元素是否支持 requestVideoFrameCallback。
+   *
+   * @param el 视频元素
+   * @returns 是否支持 requestVideoFrameCallback
+   */
   const supportsVideoFrameCallback = (el: HTMLVideoElement) => {
     return typeof el.requestVideoFrameCallback === 'function';
   };
 
+  /**
+   * 启动真实渲染帧追踪。
+   *
+   * @param videoEl 目标视频元素
+   * @returns void
+   */
   const startVideoFrameTracking = (videoEl: HTMLVideoElement) => {
     if (videoFrameCbId !== null) return;
     if (!supportsVideoFrameCallback(videoEl)) return;
@@ -65,6 +103,11 @@ export function createPerformancePlugin(
     videoFrameCbId = videoEl.requestVideoFrameCallback(tick);
   };
 
+  /**
+   * 停止真实渲染帧追踪并重置帧计数。
+   *
+   * @returns void
+   */
   const stopVideoFrameTracking = () => {
     if (trackedVideoEl && videoFrameCbId !== null && trackedVideoEl.cancelVideoFrameCallback) {
       trackedVideoEl.cancelVideoFrameCallback(videoFrameCbId);
@@ -74,17 +117,33 @@ export function createPerformancePlugin(
     frameCount = 0;
   };
 
+  /**
+   * 重置 FPS fallback 差分基线。
+   *
+   * @returns void
+   */
   const resetFpsFallbackBaseline = () => {
     lastDecodedFrames = 0;
     lastEncodedFrames = 0;
   };
 
+  /**
+   * 重置网络差分基线。
+   *
+   * @returns void
+   */
   const resetNetworkDelta = () => {
     lastBytesSent = 0;
     lastBytesReceived = 0;
     lastTimestamp = performance.now();
   };
 
+  /**
+   * 采集网络指标。
+   *
+   * @param instance 当前宿主实例
+   * @returns 网络指标；当 pc 不可用时返回 undefined
+   */
   const collectNetworkStats = async (instance: PerfInstance): Promise<NetworkStats | undefined> => {
     const pc = instance.getPeerConnection();
     if (!pc) return undefined;
@@ -158,16 +217,20 @@ export function createPerformancePlugin(
     };
   };
 
+  /**
+   * 采集 FPS。
+   *
+   * @param instance 当前宿主实例
+   * @returns FPS 与当前窗口帧数
+   */
   const collectRealFrameFps = async (instance: PerfInstance): Promise<FpsStats> => {
     const now = performance.now();
     const elapsed = (now - lastReportTime) / 1000;
     const role = getRole(instance);
 
-    // 优先：播放器场景使用 requestVideoFrameCallback 统计真实渲染帧
     if (isPlayerInstance(instance)) {
       const target = instance.getTargetElement();
       if (target instanceof HTMLVideoElement && supportsVideoFrameCallback(target)) {
-        // 首次进入或元素切换时重建追踪
         if (trackedVideoEl !== target || videoFrameCbId === null) {
           stopVideoFrameTracking();
           startVideoFrameTracking(target);
@@ -181,7 +244,6 @@ export function createPerformancePlugin(
       }
     }
 
-    // 兜底：通过 WebRTC stats 的 frames* 累计值差分估算真实帧率
     const pc = instance.getPeerConnection();
     if (!pc) {
       lastReportTime = now;
@@ -219,6 +281,11 @@ export function createPerformancePlugin(
     };
   };
 
+  /**
+   * 停止性能上报。
+   *
+   * @returns void
+   */
   const stopReporting = () => {
     if (statsTimer !== null) {
       clearInterval(statsTimer);
@@ -227,6 +294,11 @@ export function createPerformancePlugin(
     stopVideoFrameTracking();
   };
 
+  /**
+   * 启动性能上报。
+   *
+   * @returns void
+   */
   const startReporting = () => {
     if (!hostInstance || statsTimer !== null) return;
 
@@ -259,30 +331,60 @@ export function createPerformancePlugin(
     }, interval);
   };
 
+  /** 性能插件实现 */
   const plugin: RtcPlayerPlugin & RtcPublisherPlugin = {
+    /** 插件唯一名称 */
     name: 'performance',
 
+    /**
+     * 安装阶段：保存宿主引用。
+     *
+     * @param instance 宿主实例
+     */
     install(instance) {
       hostInstance = instance;
     },
 
-    onPlaying() {
+    /**
+     * 拉流媒体就绪后启动上报。
+     */
+    onMediaReady() {
       startReporting();
     },
 
-    onPublishing() {
-      startReporting();
+    /**
+     * 推流状态变化驱动上报启停。
+     *
+     * @param _ctx Hook 上下文（当前未使用）
+     * @param state 推流状态
+     */
+    onStreamingStateChange(_ctx, state) {
+      if (state === 'streaming') {
+        startReporting();
+      }
+      if (state === 'idle') {
+        stopReporting();
+      }
     },
 
-    onUnpublishing() {
+    /**
+     * 推流停止前停止采样，避免无效 getStats。
+     */
+    onBeforeStop() {
       stopReporting();
     },
 
+    /**
+     * 销毁前清理定时器与宿主引用。
+     */
     onPreDestroy() {
       stopReporting();
       hostInstance = null;
     },
 
+    /**
+     * 卸载时兜底清理。
+     */
     uninstall() {
       stopReporting();
       hostInstance = null;

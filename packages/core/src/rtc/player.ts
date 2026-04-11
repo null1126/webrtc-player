@@ -6,10 +6,20 @@ import { CanvasRenderer } from '../renders/canvas-renderer';
 import type { MediaKind, MediaRenderTarget, RtcPlayerEvents, RtcPlayerOptions } from '../rtc/types';
 import type { PlayerSignalingProvider } from '../signaling/types';
 import { RtcState } from '../rtc/types';
-import type { RtcPlayerPlugin, RtcPlayerPluginInstance } from '../plugins/types';
+import type {
+  RtcPlayerPlugin,
+  RtcPlayerPluginInstance,
+  SignalingRequestData,
+  SignalingResponseData,
+} from '../plugins/types';
 
 /**
- * RTC 拉流播放器
+ * WebRTC 拉流端实现。
+ *
+ * 主要职责：
+ * 1. 建立播放会话（Offer/Answer）
+ * 2. 将远端流绑定到目标渲染元素（video/audio/canvas）
+ * 3. 在关键生命周期触发插件 Hook
  */
 export class RtcPlayer extends RtcBase<
   RtcPlayerEvents,
@@ -17,74 +27,77 @@ export class RtcPlayer extends RtcBase<
   RtcPlayerPluginInstance,
   PlayerSignalingProvider
 > {
+  /** 渲染目标（可为空，表示仅建立连接不自动渲染） */
   private target?: MediaRenderTarget;
+  /** 拉流媒体类型偏好 */
   private mediaKind: MediaKind;
+  /** 渲染元素静音状态 */
   private muted: boolean;
+  /** 当前远端媒体流（收到 track 后更新） */
   private _currentStream: MediaStream | null = null;
+  /** canvas 渲染器（兼容 canvas 目标） */
   private canvasRenderer = new CanvasRenderer();
-  /** 保存 createSession 中的 ctx，供扩展点方法使用 */
+  /** 当前会话上下文，供 base 事件派发复用 */
   private _sessionCtx: ReturnType<RtcPlayer['createHookContext']> | null = null;
 
   constructor(options: RtcPlayerOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
     const pluginManager = new PluginManager<RtcPlayerPlugin, RtcPlayerPluginInstance>();
+
     super(options, signaling, pluginManager);
+
     pluginManager.setInstance(this);
     this.target = options.target;
     this.mediaKind = options.media ?? 'all';
     this.muted = options.muted ?? true;
+
     const plugins = (options.plugins ?? []) as RtcPlayerPlugin[];
     for (const plugin of plugins) {
       pluginManager.use(plugin);
     }
   }
 
-  /**
-   * 获取当前拉流的 URL（暴露给插件实例）
-   */
+  /** 获取当前拉流 URL */
   getStreamUrl(): string {
     return this.url;
   }
 
-  /**
-   * 获取已绑定的目标元素
-   */
+  /** 获取当前绑定的目标渲染元素 */
   getTargetElement(): MediaRenderTarget | undefined {
     return this.target;
   }
 
-  /**
-   * 获取当前远端 MediaStream（播放后可用）
-   */
+  /** 获取当前远端流 */
   getCurrentStream(): MediaStream | null {
     return this._currentStream;
   }
 
-  /**
-   * 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API
-   */
+  /** 获取底层 PeerConnection，用于高级能力（如 getStats） */
   getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
   }
 
   /**
-   * 开始拉流
+   * 启动拉流流程。
+   *
+   * 执行顺序：
+   * 1. onBeforeConnect（可改写 url / media）
+   * 2. 创建 PeerConnection + onPeerConnectionCreated
+   * 3. 根据 mediaKind 添加 recvonly transceiver
+   * 4. createSession 完成协商
    */
   async play(): Promise<boolean> {
     try {
       const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_CONNECT);
-      const pluginOpts: RtcPlayerOptions = {
+      const modified = this.pluginManager.pipeHook(ctx, 'onBeforeConnect', {
         url: this.url,
-        api: '',
         media: this.mediaKind,
-        target: this.target,
-      };
-      // Hook: onBeforeConnect
-      const modified = this.pluginManager.pipeHook(ctx, 'onBeforeConnect', pluginOpts);
-      const finalUrl = modified?.url ?? pluginOpts.url;
+      });
+
+      this.url = modified.url;
+      this.mediaKind = modified.media;
 
       this.initPeerConnection();
-      // Hook: onPeerConnectionCreated
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED),
         'onPeerConnectionCreated',
@@ -102,66 +115,103 @@ export class RtcPlayer extends RtcBase<
         this.pc.addTransceiver('audio', { direction: 'recvonly' });
       }
 
-      this.url = finalUrl;
       await this.createSession();
       return true;
     } catch (err) {
-      this.emitError(err);
+      this.emitError(err, 'player.play');
       throw err;
     }
   }
 
   /**
-   * 切换拉流地址
+   * 切换拉流地址。
+   * 会重置当前会话并重新发起 play。
    */
   async switchStream(url: string): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SWITCH_STREAM);
     this.emit('state', RtcState.SWITCHING);
-    // Hook: onBeforeSwitchStream
+
     const modified = this.pluginManager.pipeHook(ctx, 'onBeforeSwitchStream', url);
-    url = modified ?? url;
-    this.url = url;
+    this.url = modified;
+
     this.resetSession();
     await this.play();
-    // Hook: onAfterSwitchStream
+
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PLAYER_AFTER_SWITCH_STREAM),
       'onAfterSwitchStream',
-      url
+      this.url
     );
+
     this.emit('state', RtcState.SWITCHED);
   }
 
+  /**
+   * 创建播放会话（Offer/Answer）。
+   *
+   * 插件扩展点：
+   * - onBeforeSetLocalDescription
+   * - onBeforeSignalingRequest / onAfterSignalingResponse / onSignalingError
+   * - onBeforeSetRemoteDescription / onRemoteDescriptionSet
+   */
   protected async createSession(): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PLAYER_CONNECTING);
     this._sessionCtx = ctx;
+
     if (!this.pc) throw new Error('Peer connection not initialized');
 
     const offer = await this.pc.createOffer();
-    // Hook: onBeforeSetLocalDescription
-    const modifiedOffer = this.pluginManager.pipeHook(ctx, 'onBeforeSetLocalDescription', offer);
-    const offerSDP = modifiedOffer ?? offer;
+    const offerSDP = this.pluginManager.pipeHook(ctx, 'onBeforeSetLocalDescription', offer);
     await this.pc.setLocalDescription(offerSDP);
 
-    // 等待 ICE 收集完成后再交换信令（非 Trickle ICE）
     await this.waitForIceGatheringComplete();
 
-    const localSdp = this.pc.localDescription?.sdp ?? offerSDP.sdp!;
-    const answerSDP = await this.signaling.play(localSdp, this.url);
+    const signalingCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SIGNALING_REQUEST);
+    const requestStart = performance.now();
+    const request: SignalingRequestData = await this.pluginManager.asyncPipeHook(
+      signalingCtx,
+      'onBeforeSignalingRequest',
+      {
+        role: 'player',
+        url: this.url,
+        sdp: this.pc.localDescription?.sdp ?? offerSDP.sdp ?? '',
+      }
+    );
 
-    // Hook: onBeforeSetRemoteDescription
+    let answerSdp: string;
+    try {
+      answerSdp = await this.signaling.play(request.sdp, request.url);
+    } catch (error) {
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PLAYER_SIGNALING_ERROR),
+        'onSignalingError',
+        {
+          error: error instanceof Error ? error : new Error(String(error)),
+          request,
+        }
+      );
+      throw error;
+    }
+
+    const responseCtx = this.createHookContext(PluginPhase.PLAYER_AFTER_SIGNALING_RESPONSE);
+    const response: SignalingResponseData = await this.pluginManager.asyncPipeHook(
+      responseCtx,
+      'onAfterSignalingResponse',
+      {
+        role: 'player',
+        url: request.url,
+        answerSdp,
+        latencyMs: performance.now() - requestStart,
+      }
+    );
+
     const remoteCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SET_REMOTE_DESCRIPTION);
-    const modifiedAnswer = this.pluginManager.pipeHook(remoteCtx, 'onBeforeSetRemoteDescription', {
+    const answerToSet = this.pluginManager.pipeHook(remoteCtx, 'onBeforeSetRemoteDescription', {
       type: 'answer' as RTCSdpType,
-      sdp: answerSDP,
+      sdp: response.answerSdp,
     });
-    const answerToSet: RTCSessionDescriptionInit = modifiedAnswer ?? {
-      type: 'answer',
-      sdp: answerSDP,
-    };
     await this.pc.setRemoteDescription(answerToSet);
 
-    // Hook: onRemoteDescriptionSet
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PLAYER_REMOTE_DESCRIPTION_SET),
       'onRemoteDescriptionSet',
@@ -169,98 +219,140 @@ export class RtcPlayer extends RtcBase<
     );
   }
 
+  /** 上次连接状态（用于构造 previousState） */
   private _prevConnectionState: RTCPeerConnectionState = 'new';
+  /** 上次 ICE gathering 状态（用于去重） */
   private _prevIceGatheringState: RTCIceGatheringState = 'new';
 
+  /** 转发 connectionState 变化到插件系统 */
   protected override onConnectionStateChanged(state: RTCPeerConnectionState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
+
     const prev = this._prevConnectionState;
     this._prevConnectionState = state;
-    this.pluginManager.callHook(ctx, 'onConnectionStateChange', { state, previousState: prev });
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_CONNECTION_STATE_CHANGE),
+      'onConnectionStateChange',
+      { state, previousState: prev }
+    );
   }
 
+  /** 转发本地 ICE candidate 到插件系统 */
   protected override onIceCandidateReceived(candidate: RTCIceCandidate): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
-    this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate, isRemote: false });
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_ICE_CANDIDATE),
+      'onIceCandidate',
+      {
+        candidate,
+        isRemote: false,
+      }
+    );
   }
 
+  /** 转发 ICE connection state 到插件系统 */
   protected override onIceConnectionStateChanged(state: RTCIceConnectionState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
-    this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', state);
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_ICE_CONNECTION_STATE_CHANGE),
+      'onIceConnectionStateChange',
+      state
+    );
   }
 
+  /** 转发 ICE gathering state 到插件系统（去重） */
   protected override onIceGatheringStateChanged(state: RTCIceGatheringState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
+
     if (this._prevIceGatheringState !== state) {
       this._prevIceGatheringState = state;
-      this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.BASE_ICE_GATHERING_STATE_CHANGE),
+        'onIceGatheringStateChange',
+        state
+      );
     }
   }
 
+  /** 重置当前播放会话 */
   protected resetSession(): void {
     this._currentStream = null;
     this.canvasRenderer.stop();
+
     if (this.pc) {
       this.pc.close();
       this.pc = null;
     }
   }
 
+  /** 重连流程：重置后重新 play */
   protected async performReconnect(): Promise<void> {
     this.resetSession();
     await this.play();
   }
 
+  /**
+   * 处理远端 track 到达。
+   *
+   * 执行顺序：
+   * 1. onTrack
+   * 2. onBeforeVideoPlay（可替换 stream）
+   * 3. 绑定渲染目标
+   * 4. 渲染就绪后 onMediaReady
+   */
   protected onTrack(event: RTCTrackEvent): void {
     const ctx = this.createHookContext(PluginPhase.PLAYER_TRACK);
     const stream = event.streams[0];
     this._currentStream = stream;
 
-    // Hook: onTrack for video
     this.pluginManager.callHook(ctx, 'onTrack', stream, event);
-
     this.emit('track', { stream, event });
 
-    if (this.target) {
-      // Hook: onBeforeVideoPlay — allows plugins to replace the stream
-      const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
-      const modifiedStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
-      const finalStream = modifiedStream ?? stream;
+    if (!this.target) return;
 
-      if (this.canvasRenderer.isCanvasTarget(this.target)) {
-        this.canvasRenderer.attach(this.target, finalStream, {
-          muted: this.muted,
-          onPlaying: () => {
-            this.pluginManager.callHook(
-              this.createHookContext(PluginPhase.PLAYER_VIDEO_PLAYING),
-              'onPlaying',
-              finalStream
-            );
-          },
-        });
-        return;
-      }
+    const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
+    const finalStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
 
-      const mediaTarget = this.target;
-      this.canvasRenderer.stop();
-      mediaTarget.srcObject = finalStream;
-      mediaTarget.muted = this.muted;
-      mediaTarget.onloadedmetadata = () => {
-        void mediaTarget.play();
-        // Hook: onPlaying
-        this.pluginManager.callHook(
-          this.createHookContext(PluginPhase.PLAYER_VIDEO_PLAYING),
-          'onPlaying',
-          finalStream
-        );
-      };
+    if (this.canvasRenderer.isCanvasTarget(this.target)) {
+      this.canvasRenderer.attach(this.target, finalStream, {
+        muted: this.muted,
+        onPlaying: () => {
+          this.pluginManager.callHook(
+            this.createHookContext(PluginPhase.PLAYER_MEDIA_READY),
+            'onMediaReady',
+            finalStream
+          );
+        },
+      });
+      return;
     }
+
+    const mediaTarget = this.target;
+    this.canvasRenderer.stop();
+    mediaTarget.srcObject = finalStream;
+    mediaTarget.muted = this.muted;
+
+    mediaTarget.onloadedmetadata = () => {
+      void mediaTarget.play();
+    };
+
+    mediaTarget.onplaying = () => {
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PLAYER_MEDIA_READY),
+        'onMediaReady',
+        finalStream
+      );
+    };
   }
 
+  /** 销毁播放器实例 */
   public override destroy(): void {
     this.canvasRenderer.stop();
     super.destroy();

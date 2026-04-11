@@ -1,7 +1,12 @@
 import type { MediaRenderTarget } from '../rtc/types';
 
+/**
+ * Canvas 渲染器附加参数。
+ */
 export interface CanvasRendererOptions {
+  /** 是否静音 hidden video（影响音频输出） */
   muted: boolean;
+  /** 媒体首次进入播放态时回调 */
   onPlaying?: () => void;
 }
 
@@ -14,10 +19,18 @@ export class CanvasRenderer {
   private rafId: number | null = null;
   private hiddenVideo: HTMLVideoElement | null = null;
 
+  /**
+   * 检查目标是否为 HTMLCanvasElement。
+   * @param target 目标媒体渲染目标
+   * @returns 是否为 HTMLCanvasElement
+   */
   isCanvasTarget(target: MediaRenderTarget): target is HTMLCanvasElement {
     return target instanceof HTMLCanvasElement;
   }
 
+  /**
+   * 停止渲染。
+   */
   stop(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
@@ -32,6 +45,12 @@ export class CanvasRenderer {
     }
   }
 
+  /**
+   * 将 MediaStream 渲染到 canvas（contain）并处理音频播放。
+   * @param canvas 渲染目标 canvas
+   * @param stream 媒体流
+   * @param options 渲染器附加参数
+   */
   attach(canvas: HTMLCanvasElement, stream: MediaStream, options: CanvasRendererOptions): void {
     this.stop();
 
@@ -49,6 +68,11 @@ export class CanvasRenderer {
     };
   }
 
+  /**
+   * 同步 canvas 尺寸与 DPR。
+   * @param canvas 渲染目标 canvas
+   * @returns 同步后的 canvas 尺寸
+   */
   private syncCanvasSize(canvas: HTMLCanvasElement): { width: number; height: number } {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -63,6 +87,11 @@ export class CanvasRenderer {
     return { width, height };
   }
 
+  /**
+   * 渲染循环。
+   * @param canvas 渲染目标 canvas
+   * @param video 渲染目标 video
+   */
   private renderLoop(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
