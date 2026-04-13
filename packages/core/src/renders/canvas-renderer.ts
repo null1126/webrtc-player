@@ -8,6 +8,38 @@ export interface CanvasRendererOptions {
   muted: boolean;
   /** 媒体首次进入播放态时回调 */
   onPlaying?: () => void;
+  /** 每帧渲染通知 */
+  onFrame?: (frame: CanvasRendererFrameData) => void;
+}
+
+/**
+ * Canvas 渲染帧数据。
+ */
+export interface CanvasRendererFrameData {
+  /** rAF 时间戳 */
+  timestamp: number;
+  /** 目标 canvas */
+  canvas: HTMLCanvasElement;
+  /** 2D 绘制上下文 */
+  context2d: CanvasRenderingContext2D;
+  /** 视频元素 */
+  video: HTMLVideoElement;
+  /** canvas backing store 宽 */
+  canvasWidth: number;
+  /** canvas backing store 高 */
+  canvasHeight: number;
+  /** video 宽 */
+  videoWidth: number;
+  /** video 高 */
+  videoHeight: number;
+  /** drawImage 目标起点 x */
+  drawX: number;
+  /** drawImage 目标起点 y */
+  drawY: number;
+  /** drawImage 目标宽 */
+  drawWidth: number;
+  /** drawImage 目标高 */
+  drawHeight: number;
 }
 
 /**
@@ -63,7 +95,7 @@ export class CanvasRenderer {
     this.hiddenVideo = video;
     video.onloadedmetadata = () => {
       void video.play();
-      this.renderLoop(canvas, video);
+      this.renderLoop(canvas, video, options.onFrame);
       options.onPlaying?.();
     };
   }
@@ -92,11 +124,15 @@ export class CanvasRenderer {
    * @param canvas 渲染目标 canvas
    * @param video 渲染目标 video
    */
-  private renderLoop(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
+  private renderLoop(
+    canvas: HTMLCanvasElement,
+    video: HTMLVideoElement,
+    onFrame?: (frame: CanvasRendererFrameData) => void
+  ): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const draw = (): void => {
+    const draw = (timestamp: number): void => {
       if (!this.hiddenVideo || this.hiddenVideo !== video) return;
 
       const { width: cw, height: ch } = this.syncCanvasSize(canvas);
@@ -114,6 +150,21 @@ export class CanvasRenderer {
         const dy = (ch - dh) / 2;
 
         ctx.drawImage(video, dx, dy, dw, dh);
+
+        onFrame?.({
+          timestamp,
+          canvas,
+          context2d: ctx,
+          video,
+          canvasWidth: cw,
+          canvasHeight: ch,
+          videoWidth: vw,
+          videoHeight: vh,
+          drawX: dx,
+          drawY: dy,
+          drawWidth: dw,
+          drawHeight: dh,
+        });
       }
 
       this.rafId = requestAnimationFrame(draw);

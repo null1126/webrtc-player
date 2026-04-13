@@ -330,6 +330,13 @@ export class RtcPlayer extends RtcBase<
             finalStream
           );
         },
+        onFrame: (frame) => {
+          this.pluginManager.callHook(
+            this.createHookContext(PluginPhase.PLAYER_CANVAS_FRAME),
+            'onCanvasFrame',
+            frame
+          );
+        },
       });
       return;
     }

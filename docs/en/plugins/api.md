@@ -52,13 +52,36 @@ import type {
 - `onTrack(ctx, stream, event)`
 - `onBeforeVideoPlay(ctx, stream)` (**Pipe**, can replace stream)
 - `onMediaReady(ctx, stream)`
+- `onCanvasFrame(ctx, frame)` (**Notify**, only when `target` is `HTMLCanvasElement`)
 - `onBeforeSwitchStream(ctx, url)` (**Pipe**)
 - `onAfterSwitchStream(ctx, url)`
+
+### Hook details: `onCanvasFrame(ctx, frame)`
+
+- Timing: called on each canvas frame render.
+- Trigger condition: only when `target` is `HTMLCanvasElement`.
+- Common fields: `frame.context2d`, `frame.canvas`, `frame.timestamp`, `frame.drawX/drawY/drawWidth/drawHeight`.
+
+```typescript
+const plugin: RtcPlayerPlugin = {
+  name: 'canvas-watermark',
+  onCanvasFrame(_ctx, frame) {
+    const { context2d: ctx, canvas } = frame;
+    ctx.save();
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.textAlign = 'right';
+    ctx.fillText('LIVE', canvas.width - 16, 28);
+    ctx.restore();
+  },
+};
+```
 
 ## Publisher hooks
 
 - `onBeforeGetUserMedia(ctx, constraints)` (**Pipe**)
 - `onMediaStream(ctx, stream)`
+- `onCanvasFrame(ctx, frame)` (**Notify**, only when `target` is `HTMLCanvasElement`)
 - `onBeforeAttachStream(ctx, stream)` (**AsyncPipe**)
 - `onBeforeAttachTrack(ctx, track, stream)` (**AsyncPipe**)
 - `onTrackAttached(ctx, track, stream)`

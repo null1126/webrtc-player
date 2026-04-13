@@ -487,7 +487,16 @@ export class RtcPublisher extends RtcBase<
     if (!this.target || !this.localStream) return;
 
     if (this.canvasRenderer.isCanvasTarget(this.target)) {
-      this.canvasRenderer.attach(this.target, this.localStream, { muted: this.muted });
+      this.canvasRenderer.attach(this.target, this.localStream, {
+        muted: this.muted,
+        onFrame: (frame) => {
+          this.pluginManager.callHook(
+            this.createHookContext(PluginPhase.PUBLISHER_CANVAS_FRAME),
+            'onCanvasFrame',
+            frame
+          );
+        },
+      });
       return;
     }
 

@@ -124,6 +124,28 @@ import type {
 - 类型：Notify Hook
 - 时机：媒体元素实际进入播放态后
 
+#### `onCanvasFrame(frame)`
+
+- 类型：Notify Hook
+- 时机：Canvas 每帧绘制时
+- 触发条件：仅当 `target` 为 `HTMLCanvasElement` 时触发
+- 常用字段：`frame.context2d`、`frame.canvas`、`frame.timestamp`、`frame.drawX/drawY/drawWidth/drawHeight`
+
+```typescript
+const plugin: RtcPlayerPlugin = {
+  name: 'canvas-watermark',
+  onCanvasFrame(_ctx, frame) {
+    const { context2d: ctx, canvas } = frame;
+    ctx.save();
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.textAlign = 'right';
+    ctx.fillText('LIVE', canvas.width - 16, 28);
+    ctx.restore();
+  },
+};
+```
+
 #### `onBeforeSwitchStream(url)` / `onAfterSwitchStream(url)`
 
 - 类型：Pipe Hook / Notify Hook
@@ -142,6 +164,13 @@ import type {
 
 - 类型：Notify Hook
 - 时机：本地流可用后
+
+#### `onCanvasFrame(frame)`
+
+- 类型：Notify Hook
+- 时机：Canvas 每帧绘制时
+- 触发条件：仅当 `target` 为 `HTMLCanvasElement` 时触发
+- 说明：推流本地预览为 `canvas` 时，可在此叠加预览信息（如状态角标）
 
 #### `onBeforeAttachStream(stream)` / `onBeforeAttachTrack(track, stream)`
 

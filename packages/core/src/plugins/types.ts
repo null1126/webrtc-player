@@ -112,6 +112,8 @@ export const PluginPhase = {
   PLAYER_TRACK: 'player:track',
   /** 视频播放前 */
   PLAYER_BEFORE_VIDEO_PLAY: 'player:beforeVideoPlay',
+  /** canvas 帧渲染中（仅 target 为 canvas） */
+  PLAYER_CANVAS_FRAME: 'player:canvasFrame',
   /** 媒体已就绪 */
   PLAYER_MEDIA_READY: 'player:mediaReady',
   /** 切流前 */
@@ -128,6 +130,8 @@ export const PluginPhase = {
   PUBLISHER_BEFORE_GET_USER_MEDIA: 'publisher:beforeGetUserMedia',
   /** 获取到媒体流 */
   PUBLISHER_MEDIA_STREAM: 'publisher:mediaStream',
+  /** canvas 帧渲染中（仅 target 为 canvas） */
+  PUBLISHER_CANVAS_FRAME: 'publisher:canvasFrame',
   /** 整体流挂载前 */
   PUBLISHER_BEFORE_ATTACH_STREAM: 'publisher:beforeAttachStream',
   /** 单轨挂载前 */
@@ -253,6 +257,36 @@ export interface PlayerConnectRequest {
 }
 
 /**
+ * Canvas 帧渲染数据（仅当 target 为 canvas 时可用）。
+ */
+export interface CanvasFrameData {
+  /** 目标 canvas 元素 */
+  canvas: HTMLCanvasElement;
+  /** 当前 2D 上下文 */
+  context2d: CanvasRenderingContext2D;
+  /** 内部渲染用 video 元素 */
+  video: HTMLVideoElement;
+  /** rAF 时间戳 */
+  timestamp: number;
+  /** canvas backing store 宽 */
+  canvasWidth: number;
+  /** canvas backing store 高 */
+  canvasHeight: number;
+  /** video 源宽 */
+  videoWidth: number;
+  /** video 源高 */
+  videoHeight: number;
+  /** drawImage 目标起点 x */
+  drawX: number;
+  /** drawImage 目标起点 y */
+  drawY: number;
+  /** drawImage 目标宽 */
+  drawWidth: number;
+  /** drawImage 目标高 */
+  drawHeight: number;
+}
+
+/**
  * 拉流插件专属 Hook。
  */
 export interface RtcPlayerPluginHooks {
@@ -287,6 +321,8 @@ export interface RtcPlayerPluginHooks {
     ctx: HookContext<RtcPlayerPluginInstance>,
     stream: MediaStream
   ): MediaStream | void;
+  /** canvas 每帧渲染通知（仅 target 为 canvas 时触发） */
+  onCanvasFrame?(ctx: HookContext<RtcPlayerPluginInstance>, frame: CanvasFrameData): void;
   /** 媒体可播放时触发 */
   onMediaReady?(ctx: HookContext<RtcPlayerPluginInstance>, stream: MediaStream): void;
   /** 切流前（可改写 URL） */
@@ -329,6 +365,8 @@ export interface RtcPublisherPluginHooks {
   ): MediaStreamConstraints | void;
   /** 获取媒体流后 */
   onMediaStream?(ctx: HookContext<RtcPublisherPluginInstance>, stream: MediaStream): void;
+  /** canvas 每帧渲染通知（仅 target 为 canvas 时触发） */
+  onCanvasFrame?(ctx: HookContext<RtcPublisherPluginInstance>, frame: CanvasFrameData): void;
   /** 整体挂载流前（可替换 stream） */
   onBeforeAttachStream?(
     ctx: HookContext<RtcPublisherPluginInstance>,
@@ -441,6 +479,7 @@ export type RtcPlayerNotifyHook =
   | 'onIceGatheringStateChange'
   | 'onRemoteDescriptionSet'
   | 'onTrack'
+  | 'onCanvasFrame'
   | 'onMediaReady'
   | 'onAfterSwitchStream'
   | 'onSignalingError'
@@ -460,6 +499,7 @@ export type RtcPublisherNotifyHook =
   | 'onIceGatheringStateChange'
   | 'onRemoteDescriptionSet'
   | 'onMediaStream'
+  | 'onCanvasFrame'
   | 'onStreamingStateChange'
   | 'onAfterReplaceTrack'
   | 'onAfterSourceChange'
