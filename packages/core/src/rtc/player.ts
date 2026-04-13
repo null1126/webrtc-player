@@ -37,7 +37,7 @@ export class RtcPlayer extends RtcBase<
   private _currentStream: MediaStream | null = null;
   /** 已处理过的远端 track（按 kind+id 去重，避免 ontrack 重复处理） */
   private _handledRemoteTrackKeys = new Set<string>();
-  /** onBeforeVideoPlay 处理后的流缓存（key: 原始 stream.id） */
+  /** onBeforeAttachStream 处理后的流缓存（key: 原始 stream.id） */
   private _preparedStreams = new Map<string, MediaStream>();
   /** 最近一次已绑定渲染的流 ID（用于避免重复 attach） */
   private _renderedStreamId: string | null = null;
@@ -318,7 +318,7 @@ export class RtcPlayer extends RtcBase<
    *
    * 执行顺序：
    * 1. onTrack
-   * 2. onBeforeVideoPlay（可替换 stream）
+   * 2. onBeforeAttachStream（可替换 stream）
    * 3. 绑定渲染目标
    * 4. 渲染就绪后 onMediaReady
    */
@@ -347,8 +347,8 @@ export class RtcPlayer extends RtcBase<
     let finalStream = this._preparedStreams.get(streamId) ?? null;
 
     if (!finalStream) {
-      const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
-      finalStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
+      const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_ATTACH_STREAM);
+      finalStream = this.pluginManager.pipeHook(playCtx, 'onBeforeAttachStream', stream);
       this._preparedStreams.set(streamId, finalStream);
     }
 

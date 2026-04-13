@@ -50,7 +50,7 @@ import type {
 - `onBeforeSetRemoteDescription(ctx, answer)` (**Pipe**)
 - `onRemoteDescriptionSet(ctx, answer)`
 - `onTrack(ctx, stream, event)`
-- `onBeforeVideoPlay(ctx, stream)` (**Pipe**, can replace stream)
+- `onBeforeAttachStream(ctx, stream)` (**Pipe**, can replace stream)
 - `onMediaReady(ctx, stream)`
 - `onCanvasFrame(ctx, frame)` (**Notify**, only when `target` is `HTMLCanvasElement`)
 - `onBeforeSwitchStream(ctx, url)` (**Pipe**)

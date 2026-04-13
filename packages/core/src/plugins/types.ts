@@ -110,8 +110,8 @@ export const PluginPhase = {
   PLAYER_REMOTE_DESCRIPTION_SET: 'player:remoteDescriptionSet',
   /** 收到远端轨道 */
   PLAYER_TRACK: 'player:track',
-  /** 视频播放前 */
-  PLAYER_BEFORE_VIDEO_PLAY: 'player:beforeVideoPlay',
+  /** 挂载远端流前 */
+  PLAYER_BEFORE_ATTACH_STREAM: 'player:beforeAttachStream',
   /** canvas 帧渲染中（仅 target 为 canvas） */
   PLAYER_CANVAS_FRAME: 'player:canvasFrame',
   /** 媒体已就绪 */
@@ -316,8 +316,8 @@ export interface RtcPlayerPluginHooks {
     stream: MediaStream,
     event: RTCTrackEvent
   ): void;
-  /** 视频播放前（可替换流对象） */
-  onBeforeVideoPlay?(
+  /** 挂载远端流前（可替换流对象） */
+  onBeforeAttachStream?(
     ctx: HookContext<RtcPlayerPluginInstance>,
     stream: MediaStream
   ): MediaStream | void;
@@ -523,7 +523,7 @@ export type RtcPlayerPipeHook =
   | 'onBeforeSetLocalDescription'
   | 'onBeforeSetRemoteDescription'
   | 'onBeforeSwitchStream'
-  | 'onBeforeVideoPlay';
+  | 'onBeforeAttachStream';
 
 /** 推流同步管道 Hook 名称（同步串行，可改写参数） */
 export type RtcPublisherPipeHook =

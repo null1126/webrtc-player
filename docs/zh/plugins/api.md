@@ -113,7 +113,7 @@ import type {
 - 类型：Notify Hook
 - 时机：收到远端轨道
 
-#### `onBeforeVideoPlay(stream)`
+#### `onBeforeAttachStream(stream)`
 
 - 类型：Pipe Hook
 - 时机：绑定渲染目标前

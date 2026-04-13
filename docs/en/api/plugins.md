@@ -50,7 +50,7 @@ import type {
 - `onBeforeSetRemoteDescription(ctx, answer)` (**Pipe**)
 - `onRemoteDescriptionSet(ctx, answer)`
 - `onTrack(ctx, stream, event)`
-- `onBeforeVideoPlay(ctx, stream)` (**Pipe**, replaceable stream)
+- `onBeforeAttachStream(ctx, stream)` (**Pipe**, replaceable stream)
 - `onMediaReady(ctx, stream)`
 - `onBeforeSwitchStream(ctx, url)` (**Pipe**)
 - `onAfterSwitchStream(ctx, url)`
