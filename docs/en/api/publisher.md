@@ -91,19 +91,24 @@ publisher.destroy();
 
 ## Events
 
-| Event                | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `state`              | RTC state changed (`connecting/connected/...`)   |
-| `streamstart`        | Publishing started                               |
-| `streamstop`         | Publishing stopped                               |
-| `sourcechange`       | Source changed                                   |
-| `permissiondenied`   | Media permission denied                          |
-| `track`              | Remote stream received (echo/talkback scenarios) |
-| `error`              | Runtime error                                    |
-| `icecandidate`       | Local ICE candidate generated                    |
-| `iceconnectionstate` | ICE connection state updated                     |
-| `icegatheringstate`  | ICE gathering state updated                      |
-| `reconnecting`       | Auto-reconnect attempt started                   |
-| `reconnectfailed`    | Auto-reconnect exhausted (max retries reached)   |
+| Event                  | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `state`                | RTC state changed (`connecting/connected/...`)         |
+| `streamstart`          | Publishing started                                     |
+| `streamstop`           | Publishing stopped                                     |
+| `streamingstatechange` | Publishing state changed (`idle/connecting/streaming`) |
+| `sourcechange`         | Source changed                                         |
+| `permissiondenied`     | Media permission denied                                |
+| `track`                | Remote stream received (echo/talkback scenarios)       |
+| `trackended`           | Local track ended                                      |
+| `trackmutechanged`     | Local track mute state changed                         |
+| `error`                | Runtime error                                          |
+| `icecandidate`         | Local ICE candidate generated                          |
+| `iceconnectionstate`   | ICE connection state updated                           |
+| `icegatheringstate`    | ICE gathering state updated                            |
+| `reconnecting`         | Auto-reconnect attempt started                         |
+| `reconnectfailed`      | Auto-reconnect exhausted (max retries reached)         |
+| `reconnected`          | Auto-reconnect succeeded                               |
+| `signalingerror`       | Signaling request failed                               |
 
 See [Publishing Guide](../guide/publisher) for details.

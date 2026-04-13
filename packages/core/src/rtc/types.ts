@@ -191,6 +191,18 @@ export interface RtcBaseEvents {
   reconnecting: { retryCount: number; maxRetries: number; interval: number };
   /** 重连失败（已达最大次数） */
   reconnectfailed: { maxRetries: number };
+  /** 重连成功 */
+  reconnected: void;
+  /** 信令异常 */
+  signalingerror: {
+    error: Error;
+    request?: {
+      role: 'player' | 'publisher';
+      url: string;
+      sdp: string;
+      extra?: Record<string, unknown>;
+    };
+  };
 }
 
 /**
@@ -199,6 +211,8 @@ export interface RtcBaseEvents {
 export interface RtcPlayerEvents extends RtcBaseEvents {
   /** 收到远端流 */
   track: { stream: MediaStream; event: RTCTrackEvent };
+  /** 媒体元素进入播放态 */
+  mediaready: { stream: MediaStream };
 }
 
 /**
@@ -215,4 +229,10 @@ export interface RtcPublisherEvents extends RtcBaseEvents {
   track: { stream: MediaStream; event: RTCTrackEvent };
   /** 用户拒绝媒体授权 */
   permissiondenied: { source: MediaSource; error: Error };
+  /** 推流状态变化 */
+  streamingstatechange: 'idle' | 'connecting' | 'streaming';
+  /** 本地轨道结束 */
+  trackended: { track: MediaStreamTrack; stream: MediaStream; reason: 'ended' };
+  /** 本地轨道 mute/unmute */
+  trackmutechanged: { track: MediaStreamTrack; muted: boolean };
 }

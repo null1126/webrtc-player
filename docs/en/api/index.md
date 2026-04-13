@@ -98,6 +98,7 @@ player.destroy();
 | Event                | Description                                    |
 | -------------------- | ---------------------------------------------- |
 | `track`              | Remote stream received                         |
+| `mediaready`         | Media entered playable state                   |
 | `state`              | RTC state changed (`connecting/connected/...`) |
 | `error`              | Runtime error                                  |
 | `icecandidate`       | Local ICE candidate generated                  |
@@ -105,6 +106,8 @@ player.destroy();
 | `icegatheringstate`  | ICE gathering state updated                    |
 | `reconnecting`       | Auto-reconnect attempt started                 |
 | `reconnectfailed`    | Auto-reconnect exhausted (max retries reached) |
+| `reconnected`        | Auto-reconnect succeeded                       |
+| `signalingerror`     | Signaling request failed                       |
 
 ## Usage Example
 

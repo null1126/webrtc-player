@@ -69,6 +69,20 @@ WebRTC Player 采用事件驱动模型。你可以通过事件感知连接状态
 - 签名：`data: { maxRetries: number }`
 - 用途：触发兜底策略（提示刷新、切换线路、人工介入）
 
+#### `reconnected`
+
+- 类型：Notify Event
+- 时机：自动重连成功后
+- 签名：`void`
+- 用途：清理重连提示、恢复业务链路
+
+#### `signalingerror`
+
+- 类型：Error Event
+- 时机：信令请求异常时
+- 签名：`data: { error: Error; request?: { role: 'player' | 'publisher'; url: string; sdp: string; extra?: Record<string, unknown> } }`
+- 用途：精准定位协商失败原因，补充日志与告警信息
+
 ---
 
 ## 拉流事件（播放器）
@@ -79,6 +93,13 @@ WebRTC Player 采用事件驱动模型。你可以通过事件感知连接状态
 - 时机：收到远端媒体轨道时
 - 签名：`data: { stream: MediaStream; event: RTCTrackEvent }`
 - 用途：挂载远端流到视频元素、做轨道分析与统计
+
+#### `mediaready`
+
+- 类型：Notify Event
+- 时机：媒体元素实际进入播放态后
+- 签名：`data: { stream: MediaStream }`
+- 用途：关闭 loading、切换“可播放”状态
 
 ---
 
@@ -109,8 +130,15 @@ WebRTC Player 采用事件驱动模型。你可以通过事件感知连接状态
 
 - 类型：Error Event
 - 时机：获取媒体权限被拒绝时
-- 签名：`data: { source: MediaSource; error: string }`
+- 签名：`data: { source: MediaSource; error: Error }`
 - 用途：提示用户授权路径与重试方式
+
+#### `streamingstatechange`
+
+- 类型：Notify Event
+- 时机：推流状态变化时
+- 签名：`state: 'idle' | 'connecting' | 'streaming'`
+- 用途：驱动推流按钮与状态文案（连接中/推流中/空闲）
 
 #### `track`
 
@@ -118,6 +146,20 @@ WebRTC Player 采用事件驱动模型。你可以通过事件感知连接状态
 - 时机：收到远端媒体轨道时（如回声检测/对讲场景）
 - 签名：`data: { stream: MediaStream; event: RTCTrackEvent }`
 - 用途：处理返送流、对讲流等远端媒体
+
+#### `trackended`
+
+- 类型：Notify Event
+- 时机：本地轨道触发 ended 时
+- 签名：`data: { track: MediaStreamTrack; stream: MediaStream; reason: 'ended' }`
+- 用途：提示设备中断、自动触发重试或切源
+
+#### `trackmutechanged`
+
+- 类型：Notify Event
+- 时机：本地轨道触发 mute/unmute 时
+- 签名：`data: { track: MediaStreamTrack; muted: boolean }`
+- 用途：同步静音态 UI、埋点设备波动
 
 ## 监听方式
 

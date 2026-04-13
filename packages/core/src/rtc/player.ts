@@ -188,14 +188,19 @@ export class RtcPlayer extends RtcBase<
     try {
       answerSdp = await this.signaling.play(request.sdp, request.url);
     } catch (error) {
+      const signalingError = error instanceof Error ? error : new Error(String(error));
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PLAYER_SIGNALING_ERROR),
         'onSignalingError',
         {
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: signalingError,
           request,
         }
       );
+      this.emit('signalingerror', {
+        error: signalingError,
+        request,
+      });
       throw error;
     }
 
@@ -367,6 +372,7 @@ export class RtcPlayer extends RtcBase<
             'onMediaReady',
             finalStream
           );
+          this.emit('mediaready', { stream: finalStream });
         },
         onFrame: (frame) => {
           this.pluginManager.callHook(
@@ -398,6 +404,7 @@ export class RtcPlayer extends RtcBase<
         'onMediaReady',
         finalStream
       );
+      this.emit('mediaready', { stream: finalStream });
     };
   }
 

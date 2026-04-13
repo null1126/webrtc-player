@@ -109,6 +109,7 @@ export class RtcPublisher extends RtcBase<
     try {
       const ctx = this.createHookContext(PluginPhase.PUBLISHER_STARTING);
       this.pluginManager.callHook(ctx, 'onStreamingStateChange', 'connecting');
+      this.emit('streamingstatechange', 'connecting');
 
       this.initPeerConnection();
       this.pluginManager.callHook(
@@ -128,6 +129,7 @@ export class RtcPublisher extends RtcBase<
         'onStreamingStateChange',
         'streaming'
       );
+      this.emit('streamingstatechange', 'streaming');
 
       return true;
     } catch (err) {
@@ -161,6 +163,7 @@ export class RtcPublisher extends RtcBase<
       'onStreamingStateChange',
       'idle'
     );
+    this.emit('streamingstatechange', 'idle');
 
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PUBLISHER_AFTER_STOP),
@@ -261,14 +264,19 @@ export class RtcPublisher extends RtcBase<
     try {
       answerSDP = await this.signaling.publish(request.sdp, request.url);
     } catch (error) {
+      const signalingError = error instanceof Error ? error : new Error(String(error));
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_SIGNALING_ERROR),
         'onSignalingError',
         {
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: signalingError,
           request,
         }
       );
+      this.emit('signalingerror', {
+        error: signalingError,
+        request,
+      });
       throw error;
     }
 
@@ -607,6 +615,7 @@ export class RtcPublisher extends RtcBase<
           'onTrackEnded',
           { track, stream, reason: 'ended' }
         );
+        this.emit('trackended', { track, stream, reason: 'ended' });
       };
       const onMute = () => {
         this.pluginManager.callHook(
@@ -614,6 +623,7 @@ export class RtcPublisher extends RtcBase<
           'onTrackMuteChanged',
           { track, muted: true }
         );
+        this.emit('trackmutechanged', { track, muted: true });
       };
       const onUnmute = () => {
         this.pluginManager.callHook(
@@ -621,6 +631,7 @@ export class RtcPublisher extends RtcBase<
           'onTrackMuteChanged',
           { track, muted: false }
         );
+        this.emit('trackmutechanged', { track, muted: false });
       };
 
       track.addEventListener('ended', onEnded);

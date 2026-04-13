@@ -543,5 +543,6 @@ export abstract class RtcBase<
   private notifyReconnected(): void {
     const ctx = this.createHookContext(PluginPhase.BASE_RECONNECTED);
     this.pluginManager.callHook(ctx, 'onReconnected');
+    this.emit('reconnected', undefined);
   }
 }
