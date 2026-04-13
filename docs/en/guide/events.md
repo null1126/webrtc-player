@@ -29,6 +29,8 @@ These events are available on both `RtcPlayer` and `RtcPublisher`:
 | `icegatheringstate`  | ICE gathering state updated                    | `RTCIceGatheringState`                 |
 | `reconnecting`       | Auto-reconnect attempt started                 | `{ retryCount, maxRetries, interval }` |
 | `reconnectfailed`    | Auto-reconnect exhausted (max retries reached) | `{ maxRetries }`                       |
+| `reconnected`        | Auto-reconnect succeeded                       | `void`                                 |
+| `signalingerror`     | Signaling request failed                       | `{ error, request? }`                  |
 
 ### Recommended listeners (common)
 
@@ -47,9 +49,10 @@ instance.on('error', onError);
 
 ## 2) Playback Events (only `RtcPlayer`)
 
-| Event   | Description                 | Payload type        |
-| ------- | --------------------------- | ------------------- |
-| `track` | Remote media stream arrived | `{ stream, event }` |
+| Event        | Description                          | Payload type        |
+| ------------ | ------------------------------------ | ------------------- |
+| `track`      | Remote media stream arrived          | `{ stream, event }` |
+| `mediaready` | Media element entered playable state | `{ stream }`        |
 
 ### Recommended listeners (playback)
 
@@ -63,13 +66,16 @@ player.on('track', onRemoteTrack);
 
 ## 3) Publishing Events (only `RtcPublisher`)
 
-| Event              | Description                        | Payload type        |
-| ------------------ | ---------------------------------- | ------------------- |
-| `streamstart`      | Publishing has started             | `{ stream }`        |
-| `streamstop`       | Publishing has stopped             | `void`              |
-| `sourcechange`     | Capture source switched            | `MediaSource`       |
-| `permissiondenied` | Media permission was denied        | `{ source, error }` |
-| `track`            | Remote media stream arrived (echo) | `{ stream, event }` |
+| Event                  | Description                           | Payload type                            |
+| ---------------------- | ------------------------------------- | --------------------------------------- |
+| `streamstart`          | Publishing has started                | `{ stream }`                            |
+| `streamstop`           | Publishing has stopped                | `void`                                  |
+| `streamingstatechange` | Publishing state changed              | `'idle' \| 'connecting' \| 'streaming'` |
+| `sourcechange`         | Capture source switched               | `MediaSource`                           |
+| `permissiondenied`     | Media permission was denied           | `{ source, error: Error }`              |
+| `track`                | Remote media stream arrived (echo)    | `{ stream, event }`                     |
+| `trackended`           | Local track ended                     | `{ track, stream, reason: 'ended' }`    |
+| `trackmutechanged`     | Local track mute/unmute state changed | `{ track, muted: boolean }`             |
 
 ### Recommended listeners (publishing)
 

@@ -1,8 +1,45 @@
 import type { MediaRenderTarget } from '../rtc/types';
 
+/**
+ * Canvas 渲染器附加参数。
+ */
 export interface CanvasRendererOptions {
+  /** 是否静音 hidden video（影响音频输出） */
   muted: boolean;
+  /** 媒体首次进入播放态时回调 */
   onPlaying?: () => void;
+  /** 每帧渲染通知 */
+  onFrame?: (frame: CanvasRendererFrameData) => void;
+}
+
+/**
+ * Canvas 渲染帧数据。
+ */
+export interface CanvasRendererFrameData {
+  /** rAF 时间戳 */
+  timestamp: number;
+  /** 目标 canvas */
+  canvas: HTMLCanvasElement;
+  /** 2D 绘制上下文 */
+  context2d: CanvasRenderingContext2D;
+  /** 视频元素 */
+  video: HTMLVideoElement;
+  /** canvas backing store 宽 */
+  canvasWidth: number;
+  /** canvas backing store 高 */
+  canvasHeight: number;
+  /** video 宽 */
+  videoWidth: number;
+  /** video 高 */
+  videoHeight: number;
+  /** drawImage 目标起点 x */
+  drawX: number;
+  /** drawImage 目标起点 y */
+  drawY: number;
+  /** drawImage 目标宽 */
+  drawWidth: number;
+  /** drawImage 目标高 */
+  drawHeight: number;
 }
 
 /**
@@ -14,10 +51,18 @@ export class CanvasRenderer {
   private rafId: number | null = null;
   private hiddenVideo: HTMLVideoElement | null = null;
 
+  /**
+   * 检查目标是否为 HTMLCanvasElement。
+   * @param target 目标媒体渲染目标
+   * @returns 是否为 HTMLCanvasElement
+   */
   isCanvasTarget(target: MediaRenderTarget): target is HTMLCanvasElement {
     return target instanceof HTMLCanvasElement;
   }
 
+  /**
+   * 停止渲染。
+   */
   stop(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
@@ -32,6 +77,12 @@ export class CanvasRenderer {
     }
   }
 
+  /**
+   * 将 MediaStream 渲染到 canvas（contain）并处理音频播放。
+   * @param canvas 渲染目标 canvas
+   * @param stream 媒体流
+   * @param options 渲染器附加参数
+   */
   attach(canvas: HTMLCanvasElement, stream: MediaStream, options: CanvasRendererOptions): void {
     this.stop();
 
@@ -44,11 +95,16 @@ export class CanvasRenderer {
     this.hiddenVideo = video;
     video.onloadedmetadata = () => {
       void video.play();
-      this.renderLoop(canvas, video);
+      this.renderLoop(canvas, video, options.onFrame);
       options.onPlaying?.();
     };
   }
 
+  /**
+   * 同步 canvas 尺寸与 DPR。
+   * @param canvas 渲染目标 canvas
+   * @returns 同步后的 canvas 尺寸
+   */
   private syncCanvasSize(canvas: HTMLCanvasElement): { width: number; height: number } {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -63,11 +119,20 @@ export class CanvasRenderer {
     return { width, height };
   }
 
-  private renderLoop(canvas: HTMLCanvasElement, video: HTMLVideoElement): void {
+  /**
+   * 渲染循环。
+   * @param canvas 渲染目标 canvas
+   * @param video 渲染目标 video
+   */
+  private renderLoop(
+    canvas: HTMLCanvasElement,
+    video: HTMLVideoElement,
+    onFrame?: (frame: CanvasRendererFrameData) => void
+  ): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const draw = (): void => {
+    const draw = (timestamp: number): void => {
       if (!this.hiddenVideo || this.hiddenVideo !== video) return;
 
       const { width: cw, height: ch } = this.syncCanvasSize(canvas);
@@ -85,6 +150,21 @@ export class CanvasRenderer {
         const dy = (ch - dh) / 2;
 
         ctx.drawImage(video, dx, dy, dw, dh);
+
+        onFrame?.({
+          timestamp,
+          canvas,
+          context2d: ctx,
+          video,
+          canvasWidth: cw,
+          canvasHeight: ch,
+          videoWidth: vw,
+          videoHeight: vh,
+          drawX: dx,
+          drawY: dy,
+          drawWidth: dw,
+          drawHeight: dh,
+        });
       }
 
       this.rafId = requestAnimationFrame(draw);

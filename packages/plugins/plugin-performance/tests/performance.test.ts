@@ -7,8 +7,9 @@ describe('createPerformancePlugin', () => {
 
     expect(plugin.name).toBe('performance');
     expect(typeof plugin.install).toBe('function');
-    expect(typeof plugin.onPlaying).toBe('function');
-    expect(typeof plugin.onPublishing).toBe('function');
+    expect(typeof plugin.onMediaReady).toBe('function');
+    expect(typeof plugin.onStreamingStateChange).toBe('function');
+    expect(typeof plugin.onBeforeStop).toBe('function');
     expect(typeof plugin.onPreDestroy).toBe('function');
     expect(typeof plugin.uninstall).toBe('function');
   });

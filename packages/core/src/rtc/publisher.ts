@@ -11,11 +11,23 @@ import type {
   RtcPublisherOptions,
 } from './types';
 import { RtcState } from './types';
-import type { HookContext, RtcPublisherPlugin, RtcPublisherPluginInstance } from '../plugins/types';
+import type {
+  HookContext,
+  RtcPublisherPlugin,
+  RtcPublisherPluginInstance,
+  SignalingRequestData,
+  SignalingResponseData,
+} from '../plugins/types';
 import type { PublisherSignalingProvider } from '../signaling/types';
 
 /**
- * RTC 推流器
+ * WebRTC 推流端实现。
+ *
+ * 主要职责：
+ * 1. 采集本地媒体源（camera / microphone / screen / custom）
+ * 2. 将轨道绑定到 PeerConnection 并完成协商
+ * 3. 管理推流生命周期（start / stop / switchSource）
+ * 4. 在关键时机触发插件 Hook，支持观测与改写能力
  */
 export class RtcPublisher extends RtcBase<
   RtcPublisherEvents,
@@ -23,71 +35,83 @@ export class RtcPublisher extends RtcBase<
   RtcPublisherPluginInstance,
   PublisherSignalingProvider
 > {
+  /** 当前输入源定义 */
   private _source: MediaSource;
+  /** 本地预览目标元素 */
   private target?: MediaRenderTarget;
+  /** 预览静音标记 */
   private muted: boolean;
+  /** 当前本地采集流 */
   private localStream: MediaStream | null = null;
+  /** 当前已创建的发送 transceiver 列表 */
   private activeTransceivers: RTCRtpTransceiver[] = [];
+  /** canvas 预览渲染器 */
   private canvasRenderer = new CanvasRenderer();
-  /** 保存 start() 中的 ctx，供扩展点方法使用 */
+  /** start 生命周期上下文（供 base 事件转发复用） */
   private _startCtx: HookContext<RtcPublisherPluginInstance> | null = null;
+  /** track 生命周期事件解绑集合 */
+  private trackEventUnsubs: Array<() => void> = [];
 
   constructor(options: RtcPublisherOptions) {
     const signaling = options.signaling ?? new HttpSignalingProvider(options.api);
     const pluginManager = new PluginManager<RtcPublisherPlugin, RtcPublisherPluginInstance>();
+
     super(options, signaling, pluginManager);
+
     pluginManager.setInstance(this);
     this._source = options.source;
     this.target = options.target;
     this.muted = options.muted ?? true;
+
     const plugins = (options.plugins ?? []) as RtcPublisherPlugin[];
     for (const plugin of plugins) {
       pluginManager.use(plugin);
     }
   }
 
+  /** 当前输入源（只读） */
   get source(): MediaSource {
     return this._source;
   }
 
-  /**
-   * 获取本地 MediaStream
-   */
+  /** 获取当前本地流 */
   getStream(): MediaStream | null {
     return this.localStream;
   }
 
-  /**
-   * 获取 RTCPeerConnection 实例，用于调用 getStats() 等高级 API
-   */
+  /** 获取底层 PeerConnection */
   getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
   }
 
-  /**
-   * 获取已绑定的目标元素
-   */
+  /** 获取当前预览目标 */
   getTargetElement(): MediaRenderTarget | undefined {
     return this.target;
   }
 
+  /** 覆盖销毁阶段，用于插件上下文标记 */
   protected override getDestroyPhase(): string {
     return PluginPhase.PUBLISHER_DESTROY;
   }
 
   /**
-   * 开始推流
+   * 启动推流。
+   *
+   * 执行顺序：
+   * 1. onStreamingStateChange('connecting')
+   * 2. 初始化 PeerConnection + onPeerConnectionCreated
+   * 3. 采集媒体源（onBeforeGetUserMedia / onMediaStream）
+   * 4. 轨道挂载（onBeforeAttachStream / onBeforeAttachTrack / onTrackAttached）
+   * 5. 协商（setLocal / signaling / setRemote）
+   * 6. 事件 streamstart + onStreamingStateChange('streaming')
    */
   async start(): Promise<boolean> {
     try {
       const ctx = this.createHookContext(PluginPhase.PUBLISHER_STARTING);
-
-      // Hook: onStreamingStateChange('connecting')
       this.pluginManager.callHook(ctx, 'onStreamingStateChange', 'connecting');
+      this.emit('streamingstatechange', 'connecting');
 
       this.initPeerConnection();
-      // Hook: onPeerConnectionCreated — immediately after init so plugins
-      // can configure pc (e.g. add transceivers, set codecs, etc.)
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PEER_CONNECTION_CREATED),
         'onPeerConnectionCreated',
@@ -95,70 +119,76 @@ export class RtcPublisher extends RtcBase<
       );
       this._startCtx = ctx;
 
-      await this.acquireSource(ctx);
+      await this.acquireSource(this._source, ctx);
       await this.attachStream(ctx);
       await this.createSession(ctx);
 
-      // Hook: onPublishing
-      if (this.localStream) {
-        this.pluginManager.callHook(
-          this.createHookContext(PluginPhase.PUBLISHER_STREAM_START),
-          'onPublishing',
-          this.localStream
-        );
-      }
-
       this.emit('streamstart', { stream: this.localStream as MediaStream });
-
-      // Hook: onStreamingStateChange('streaming')
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_STREAMING_STATE_CHANGE),
         'onStreamingStateChange',
         'streaming'
       );
+      this.emit('streamingstatechange', 'streaming');
 
       return true;
     } catch (err) {
-      this.emitError(err);
+      this.emitError(err, 'publisher.start');
       throw err;
     }
   }
 
   /**
-   * 停止推流
+   * 停止推流。
+   *
+   * 执行顺序：
+   * 1. onBeforeStop（异步，可等待插件释放资源）
+   * 2. resetSession + releaseSource
+   * 3. 事件 streamstop + onStreamingStateChange('idle')
+   * 4. onAfterStop
    */
-  stop(): void {
-    const ctx = this.createHookContext(PluginPhase.PUBLISHER_STREAM_STOP);
-    // Hook: onUnpublishing
-    this.pluginManager.callHook(ctx, 'onUnpublishing', this.localStream);
+  async stop(): Promise<void> {
+    await this.pluginManager.asyncPipeHook(
+      this.createHookContext(PluginPhase.PUBLISHER_BEFORE_STOP),
+      'onBeforeStop',
+      undefined as void | undefined
+    );
+
     this.resetSession();
     this.releaseSource();
     this.emit('streamstop', undefined);
-    // Hook: onStreamingStateChange('idle')
+
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PUBLISHER_STREAMING_STATE_CHANGE),
       'onStreamingStateChange',
       'idle'
     );
+    this.emit('streamingstatechange', 'idle');
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.PUBLISHER_AFTER_STOP),
+      'onAfterStop'
+    );
   }
 
   /**
-   * 切换输入源
-   * @param source 新的媒体源
+   * 切换输入源。
+   *
+   * 说明：
+   * - 使用 replaceTrack 进行无重协商轨道替换
+   * - 触发 onBeforeReplaceTrack（可改写替换轨道）
    */
   async switchSource(source: MediaSource): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SOURCE_CHANGE);
     this.emit('state', RtcState.SWITCHING);
 
-    // Hook: onBeforeSourceChange
-    const modified = this.pluginManager.pipeHook(ctx, 'onBeforeSourceChange', source);
-    source = modified ?? source;
+    source = this.pluginManager.pipeHook(ctx, 'onBeforeSourceChange', source);
 
     const prevStream = this.localStream;
     const prevSource = this._source;
 
     try {
-      await this.acquireSource(ctx);
+      await this.acquireSource(source, ctx);
 
       if (!this.pc || !this.localStream) {
         throw new Error('RTC peer connection not ready');
@@ -166,16 +196,24 @@ export class RtcPublisher extends RtcBase<
 
       for (const transceiver of this.activeTransceivers) {
         const oldTrack = transceiver.sender.track;
-        const newTrack = this.localStream!.getTracks().find(
-          (t) => t.kind === transceiver.receiver.track.kind
+        const newTrackRaw =
+          this.localStream.getTracks().find((t) => t.kind === oldTrack?.kind) ?? null;
+
+        const newTrack = await this.pluginManager.asyncPipeHook(
+          this.createHookContext(PluginPhase.PUBLISHER_BEFORE_REPLACE_TRACK),
+          'onBeforeReplaceTrack',
+          newTrackRaw,
+          oldTrack,
+          newTrackRaw
         );
-        if (newTrack) {
-          // Hook: onBeforeReplaceTrack
-          this.pluginManager.callHook(ctx, 'onBeforeReplaceTrack', oldTrack, newTrack);
-          await transceiver.sender.replaceTrack(newTrack);
-          // Hook: onAfterReplaceTrack
-          this.pluginManager.callHook(ctx, 'onAfterReplaceTrack', newTrack);
-        }
+
+        await transceiver.sender.replaceTrack(newTrack);
+
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PUBLISHER_AFTER_REPLACE_TRACK),
+          'onAfterReplaceTrack',
+          newTrack
+        );
       }
 
       this._source = source;
@@ -191,7 +229,7 @@ export class RtcPublisher extends RtcBase<
 
     this.emit('state', RtcState.SWITCHED);
     this.emit('sourcechange', source);
-    // Hook: onAfterSourceChange
+
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PUBLISHER_AFTER_SOURCE_CHANGE),
       'onAfterSourceChange',
@@ -200,35 +238,69 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 创建会话
+   * 创建推流会话。
    */
   protected async createSession(ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
     if (!this.pc) throw new Error('Peer connection not initialized');
 
     const offer = await this.pc.createOffer();
-    // Hook: onBeforeSetLocalDescription
-    const modifiedOffer = this.pluginManager.pipeHook(ctx, 'onBeforeSetLocalDescription', offer);
-    const offerSDP = modifiedOffer ?? offer;
+    const offerSDP = this.pluginManager.pipeHook(ctx, 'onBeforeSetLocalDescription', offer);
     await this.pc.setLocalDescription(offerSDP);
 
-    // 等待 ICE 收集完成后再交换信令（非 Trickle ICE）
     await this.waitForIceGatheringComplete();
 
-    const localSdp = this.pc.localDescription?.sdp ?? offerSDP.sdp!;
-    const answerSDP = await this.signaling.publish(localSdp, this.url);
-    // Hook: onBeforeSetRemoteDescription
-    const remoteCtx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SET_REMOTE_DESCRIPTION);
-    const modifiedAnswer = this.pluginManager.pipeHook(remoteCtx, 'onBeforeSetRemoteDescription', {
-      type: 'answer' as RTCSdpType,
-      sdp: answerSDP,
-    });
-    const answerToSet: RTCSessionDescriptionInit = modifiedAnswer ?? {
-      type: 'answer',
-      sdp: answerSDP,
-    };
+    const requestStart = performance.now();
+    const request: SignalingRequestData = await this.pluginManager.asyncPipeHook(
+      this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SIGNALING_REQUEST),
+      'onBeforeSignalingRequest',
+      {
+        role: 'publisher',
+        url: this.url,
+        sdp: this.pc.localDescription?.sdp ?? offerSDP.sdp ?? '',
+      }
+    );
+
+    let answerSDP: string;
+    try {
+      answerSDP = await this.signaling.publish(request.sdp, request.url);
+    } catch (error) {
+      const signalingError = error instanceof Error ? error : new Error(String(error));
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.PUBLISHER_SIGNALING_ERROR),
+        'onSignalingError',
+        {
+          error: signalingError,
+          request,
+        }
+      );
+      this.emit('signalingerror', {
+        error: signalingError,
+        request,
+      });
+      throw error;
+    }
+
+    const response: SignalingResponseData = await this.pluginManager.asyncPipeHook(
+      this.createHookContext(PluginPhase.PUBLISHER_AFTER_SIGNALING_RESPONSE),
+      'onAfterSignalingResponse',
+      {
+        role: 'publisher',
+        url: request.url,
+        answerSdp: answerSDP,
+        latencyMs: performance.now() - requestStart,
+      }
+    );
+
+    const answerToSet = this.pluginManager.pipeHook(
+      this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SET_REMOTE_DESCRIPTION),
+      'onBeforeSetRemoteDescription',
+      {
+        type: 'answer' as RTCSdpType,
+        sdp: response.answerSdp,
+      }
+    );
     await this.pc.setRemoteDescription(answerToSet);
 
-    // Hook: onRemoteDescriptionSet
     this.pluginManager.callHook(
       this.createHookContext(PluginPhase.PUBLISHER_REMOTE_DESCRIPTION_SET),
       'onRemoteDescriptionSet',
@@ -237,25 +309,26 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 重置会话
+   * 重置推流会话。
    */
   protected resetSession(): void {
     if (this.pc) {
       this.pc.close();
       this.pc = null;
     }
+
+    this.clearTrackListeners();
     this.activeTransceivers = [];
   }
 
+  /** 重连策略：重置并重新 start */
   protected async performReconnect(): Promise<void> {
     this.resetSession();
     this.releaseSource();
     await this.start();
   }
 
-  /**
-   * 处理轨道事件
-   */
+  /** 处理回声/对讲场景的远端 track */
   protected onTrack(event: RTCTrackEvent): void {
     const ctx = this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED);
     const stream = event.streams[0];
@@ -263,90 +336,118 @@ export class RtcPublisher extends RtcBase<
     this.emit('track', { stream, event });
   }
 
-  // ---------- 扩展点：注入 plugin hook ----------
-
+  /** 上一个 connectionState */
   private _prevConnectionState: RTCPeerConnectionState = 'new';
+  /** 上一个 iceGatheringState */
   private _prevIceGatheringState: RTCIceGatheringState = 'new';
 
+  /** 转发 connectionState 到插件 */
   protected override onConnectionStateChanged(state: RTCPeerConnectionState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
+
     const prev = this._prevConnectionState;
     this._prevConnectionState = state;
-    this.pluginManager.callHook(ctx, 'onConnectionStateChange', { state, previousState: prev });
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_CONNECTION_STATE_CHANGE),
+      'onConnectionStateChange',
+      { state, previousState: prev }
+    );
   }
 
+  /** 转发本地 candidate 到插件 */
   protected override onIceCandidateReceived(candidate: RTCIceCandidate): void {
     const ctx = this._startCtx;
     if (!ctx) return;
-    this.pluginManager.callHook(ctx, 'onIceCandidate', { candidate, isRemote: false });
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_ICE_CANDIDATE),
+      'onIceCandidate',
+      {
+        candidate,
+        isRemote: false,
+      }
+    );
   }
 
+  /** 转发 ICE connection state 到插件 */
   protected override onIceConnectionStateChanged(state: RTCIceConnectionState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
-    this.pluginManager.callHook(ctx, 'onIceConnectionStateChange', state);
+
+    this.pluginManager.callHook(
+      this.createHookContext(PluginPhase.BASE_ICE_CONNECTION_STATE_CHANGE),
+      'onIceConnectionStateChange',
+      state
+    );
   }
 
+  /** 转发 ICE gathering state 到插件（去重） */
   protected override onIceGatheringStateChanged(state: RTCIceGatheringState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
+
     if (this._prevIceGatheringState !== state) {
       this._prevIceGatheringState = state;
-      this.pluginManager.callHook(ctx, 'onIceGatheringStateChange', state);
+      this.pluginManager.callHook(
+        this.createHookContext(PluginPhase.BASE_ICE_GATHERING_STATE_CHANGE),
+        'onIceGatheringStateChange',
+        state
+      );
     }
   }
 
   /**
-   * 获取媒体源
-   * @param ctx 调用方已创建的上下文
+   * 采集指定输入源并更新 localStream。
    */
-  private async acquireSource(ctx: HookContext<RtcPublisherPluginInstance>): Promise<MediaStream> {
-    const s = this._source;
-
-    if (s.type === 'custom') {
-      this.localStream = s.stream;
-      // Hook: onMediaStream — immediately, before attachStream
+  private async acquireSource(
+    source: MediaSource,
+    ctx: HookContext<RtcPublisherPluginInstance>
+  ): Promise<MediaStream> {
+    if (source.type === 'custom') {
+      this.localStream = source.stream;
+      this.bindVideo();
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_MEDIA_STREAM),
         'onMediaStream',
         this.localStream
       );
-      this.bindVideo();
-      return s.stream;
+      this.bindTrackLifecycle(this.localStream);
+      return source.stream;
     }
 
     try {
-      // Hook: onBeforeGetUserMedia
-      const constraints = this.buildConstraints(s);
-      const modified = this.pluginManager.pipeHook(ctx, 'onBeforeGetUserMedia', constraints);
-      const finalConstraints = modified ?? constraints;
-
-      this.localStream = await this.requestMedia(s, finalConstraints);
+      const constraints = this.buildConstraints(source);
+      const finalConstraints = this.pluginManager.pipeHook(
+        ctx,
+        'onBeforeGetUserMedia',
+        constraints
+      );
+      this.localStream = await this.requestMedia(source, finalConstraints);
     } catch (err) {
       if (err instanceof Error) {
-        this.handlePermissionError(s, err);
+        this.handlePermissionError(source, err);
       }
       throw err;
     }
 
     this.bindVideo();
 
-    // Hook: onMediaStream — always called after localStream is available,
-    // before onBeforeAttachStream/onBeforeAttachTrack run.
     if (this.localStream) {
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_MEDIA_STREAM),
         'onMediaStream',
         this.localStream
       );
+      this.bindTrackLifecycle(this.localStream);
     }
 
     return this.localStream;
   }
 
   /**
-   * 根据 MediaSource 构建 MediaStreamConstraints
+   * 根据输入源构建媒体采集约束。
    */
   private buildConstraints(s: MediaSource): MediaStreamConstraints {
     if (s.type === 'screen') {
@@ -375,7 +476,7 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 请求媒体设备获取 MediaStream
+   * 调用浏览器媒体 API 获取流。
    */
   private async requestMedia(
     s: MediaSource,
@@ -388,13 +489,22 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 将 localStream 绑定到预览 target 元素
+   * 将本地流绑定到预览目标。
    */
   private bindVideo(): void {
     if (!this.target || !this.localStream) return;
 
     if (this.canvasRenderer.isCanvasTarget(this.target)) {
-      this.canvasRenderer.attach(this.target, this.localStream, { muted: this.muted });
+      this.canvasRenderer.attach(this.target, this.localStream, {
+        muted: this.muted,
+        onFrame: (frame) => {
+          this.pluginManager.callHook(
+            this.createHookContext(PluginPhase.PUBLISHER_CANVAS_FRAME),
+            'onCanvasFrame',
+            frame
+          );
+        },
+      });
       return;
     }
 
@@ -408,7 +518,7 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 检测并发射权限拒绝事件
+   * 统一处理权限拒绝类错误。
    */
   private handlePermissionError(source: MediaSource, err: Error): void {
     if (
@@ -421,49 +531,36 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 将媒体流绑定到轨道
-   *
-   * 执行顺序：
-   * 1. onBeforeAttachStream(stream) — 接收完整 stream，插件可在此混流/添加水印
-   * 2. onBeforeAttachTrack(track, stream) — 接收单个 track（video/audio 各一次）
-   * 3. transceiver.addTrack() — 实际绑定
-   * 4. onTrackAttached(track, stream) — 绑定完成后
-   *
-   * @param _ctx 调用方已创建的上下文（内部通过 createHookContext 重新构建 phase）
+   * 将流轨道绑定到 PeerConnection。
    */
   private async attachStream(_ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
     if (!this.pc || !this.localStream) return;
 
     this.activeTransceivers = [];
 
-    // Step 1: Hook: onBeforeAttachStream — 接收完整 MediaStream
     const attachCtx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_ATTACH_STREAM);
-    const processedStreamWrapper = await this.pluginManager.asyncPipeHook(
+    const streamToAttach = await this.pluginManager.asyncPipeHook(
       attachCtx,
       'onBeforeAttachStream',
       this.localStream
     );
-    const streamToAttach = processedStreamWrapper ?? this.localStream;
 
     const videoTrack = streamToAttach.getVideoTracks()[0];
     const audioTrack = streamToAttach.getAudioTracks()[0];
 
     if (videoTrack) {
-      // Hook: onBeforeAttachTrack — async for video
-      const processedVideoTrack = await this.pluginManager.asyncPipeHook(
-        attachCtx,
+      const finalVideoTrack = await this.pluginManager.asyncPipeHook(
+        this.createHookContext(PluginPhase.PUBLISHER_BEFORE_ATTACH_TRACK),
         'onBeforeAttachTrack',
         videoTrack,
         streamToAttach
       );
-      const finalVideoTrack = processedVideoTrack ?? videoTrack;
 
       const videoTransceiver = this.pc.addTransceiver(finalVideoTrack, {
         direction: 'sendonly',
       });
       this.activeTransceivers.push(videoTransceiver);
 
-      // Hook: onTrackAttached — after transceiver is created
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED),
         'onTrackAttached',
@@ -473,21 +570,18 @@ export class RtcPublisher extends RtcBase<
     }
 
     if (audioTrack) {
-      // Hook: onBeforeAttachTrack — async for audio
-      const processedAudioTrack = await this.pluginManager.asyncPipeHook(
-        attachCtx,
+      const finalAudioTrack = await this.pluginManager.asyncPipeHook(
+        this.createHookContext(PluginPhase.PUBLISHER_BEFORE_ATTACH_TRACK),
         'onBeforeAttachTrack',
         audioTrack,
         streamToAttach
       );
-      const finalAudioTrack = processedAudioTrack ?? audioTrack;
 
       const audioTransceiver = this.pc.addTransceiver(finalAudioTrack, {
         direction: 'sendonly',
       });
       this.activeTransceivers.push(audioTransceiver);
 
-      // Hook: onTrackAttached — after transceiver is created
       this.pluginManager.callHook(
         this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED),
         'onTrackAttached',
@@ -502,7 +596,68 @@ export class RtcPublisher extends RtcBase<
   }
 
   /**
-   * 释放媒体源
+   * 绑定本地 track 生命周期事件（ended/mute/unmute）。
+   */
+  private bindTrackLifecycle(stream: MediaStream): void {
+    this.clearTrackListeners();
+
+    for (const track of stream.getTracks()) {
+      if (
+        typeof track.addEventListener !== 'function' ||
+        typeof track.removeEventListener !== 'function'
+      ) {
+        continue;
+      }
+
+      const onEnded = () => {
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PUBLISHER_TRACK_ENDED),
+          'onTrackEnded',
+          { track, stream, reason: 'ended' }
+        );
+        this.emit('trackended', { track, stream, reason: 'ended' });
+      };
+      const onMute = () => {
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PUBLISHER_TRACK_MUTE_CHANGED),
+          'onTrackMuteChanged',
+          { track, muted: true }
+        );
+        this.emit('trackmutechanged', { track, muted: true });
+      };
+      const onUnmute = () => {
+        this.pluginManager.callHook(
+          this.createHookContext(PluginPhase.PUBLISHER_TRACK_MUTE_CHANGED),
+          'onTrackMuteChanged',
+          { track, muted: false }
+        );
+        this.emit('trackmutechanged', { track, muted: false });
+      };
+
+      track.addEventListener('ended', onEnded);
+      track.addEventListener('mute', onMute);
+      track.addEventListener('unmute', onUnmute);
+
+      this.trackEventUnsubs.push(() => {
+        track.removeEventListener('ended', onEnded);
+        track.removeEventListener('mute', onMute);
+        track.removeEventListener('unmute', onUnmute);
+      });
+    }
+  }
+
+  /**
+   * 清理已绑定的 track 生命周期监听。
+   */
+  private clearTrackListeners(): void {
+    this.trackEventUnsubs.forEach((off) => off());
+    this.trackEventUnsubs = [];
+  }
+
+  /**
+   * 释放媒体源。
+   *
+   * @param stream 若传入则只释放指定流，否则释放当前 localStream
    */
   private releaseSource(stream?: MediaStream): void {
     const target = stream ?? this.localStream;
@@ -522,9 +677,12 @@ export class RtcPublisher extends RtcBase<
     }
   }
 
+  /**
+   * 销毁推流实例。
+   */
   public override destroy(): void {
     this.canvasRenderer.stop();
-    this.stop();
+    void this.stop();
     super.destroy();
   }
 }

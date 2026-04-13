@@ -25,6 +25,7 @@ export default defineConfig({
           { text: '指南', link: '/zh/guide/' },
           { text: '示例', link: '/zh/examples/' },
           { text: '插件', link: '/zh/plugins/system' },
+          { text: '版本', link: '/zh/versions/' },
         ],
       },
       head: [
@@ -128,6 +129,7 @@ export default defineConfig({
           { text: 'Guide', link: '/en/guide/' },
           { text: 'Examples', link: '/en/examples/' },
           { text: 'Plugins', link: '/en/plugins/system' },
+          { text: 'Versions', link: '/en/versions/' },
         ],
       },
       head: [
@@ -301,6 +303,18 @@ export default defineConfig({
           ],
         },
       ],
+      '/zh/versions/': [
+        {
+          text: '版本管理',
+          items: [
+            { text: '版本列表', link: '/zh/versions/' },
+            { text: 'v2.1.0', link: '/zh/versions/v2.1.0' },
+            { text: 'v2.0.0', link: '/zh/versions/v2.0.0' },
+            { text: 'v1.2.0', link: '/zh/versions/v1.2.0' },
+            { text: 'v1.0.0', link: '/zh/versions/v1.0.0' },
+          ],
+        },
+      ],
       '/en/guide/': [
         {
           text: 'Guide',
@@ -358,6 +372,18 @@ export default defineConfig({
             { text: 'Plugin System', link: '/en/plugins/system' },
             { text: 'Plugin API', link: '/en/plugins/api' },
             { text: 'Official Plugins', link: '/en/plugins/official' },
+          ],
+        },
+      ],
+      '/en/versions/': [
+        {
+          text: 'Versions',
+          items: [
+            { text: 'Version List', link: '/en/versions/' },
+            { text: 'v2.1.0', link: '/en/versions/v2.1.0' },
+            { text: 'v2.0.0', link: '/en/versions/v2.0.0' },
+            { text: 'v1.2.0', link: '/en/versions/v1.2.0' },
+            { text: 'v1.0.0', link: '/en/versions/v1.0.0' },
           ],
         },
       ],

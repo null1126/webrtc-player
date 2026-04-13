@@ -20,7 +20,11 @@ const langLabel = computed(() => (currentLang.value === 'zh' ? 'EN' : '中'));
 </script>
 
 <template>
-  <a class="lang-switch" :href="switchPath" :title="currentLang === 'zh' ? 'Switch to English' : '切换到中文'">
+  <a
+    class="lang-switch"
+    :href="switchPath"
+    :title="currentLang === 'zh' ? 'Switch to English' : '切换到中文'"
+  >
     {{ langLabel }}
   </a>
 </template>

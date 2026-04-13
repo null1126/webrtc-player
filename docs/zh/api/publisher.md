@@ -91,19 +91,24 @@ publisher.destroy();
 
 ## 事件
 
-| 事件                 | 说明                                       |
-| -------------------- | ------------------------------------------ |
-| `state`              | RTC 状态变化（`connecting/connected/...`） |
-| `streamstart`        | 推流开始                                   |
-| `streamstop`         | 推流停止                                   |
-| `sourcechange`       | 输入源切换                                 |
-| `permissiondenied`   | 媒体权限被拒绝                             |
-| `track`              | 收到远端流（回声/对讲场景）                |
-| `error`              | 运行时错误                                 |
-| `icecandidate`       | 本地 ICE 候选产生                          |
-| `iceconnectionstate` | ICE 连接状态更新                           |
-| `icegatheringstate`  | ICE 收集状态更新                           |
-| `reconnecting`       | 自动重连尝试开始                           |
-| `reconnectfailed`    | 自动重连耗尽（达到最大重试次数）           |
+| 事件                   | 说明                                        |
+| ---------------------- | ------------------------------------------- |
+| `state`                | RTC 状态变化（`connecting/connected/...`）  |
+| `streamstart`          | 推流开始                                    |
+| `streamstop`           | 推流停止                                    |
+| `streamingstatechange` | 推流状态变化（`idle/connecting/streaming`） |
+| `sourcechange`         | 输入源切换                                  |
+| `permissiondenied`     | 媒体权限被拒绝                              |
+| `track`                | 收到远端流（回声/对讲场景）                 |
+| `trackended`           | 本地轨道结束                                |
+| `trackmutechanged`     | 本地轨道静音状态变化                        |
+| `error`                | 运行时错误                                  |
+| `icecandidate`         | 本地 ICE 候选产生                           |
+| `iceconnectionstate`   | ICE 连接状态更新                            |
+| `icegatheringstate`    | ICE 收集状态更新                            |
+| `reconnecting`         | 自动重连尝试开始                            |
+| `reconnectfailed`      | 自动重连耗尽（达到最大重试次数）            |
+| `reconnected`          | 自动重连成功                                |
+| `signalingerror`       | 信令请求异常                                |
 
 详见 [推流指南](../guide/publisher)。
