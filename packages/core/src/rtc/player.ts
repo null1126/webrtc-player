@@ -35,6 +35,12 @@ export class RtcPlayer extends RtcBase<
   private muted: boolean;
   /** 当前远端媒体流（收到 track 后更新） */
   private _currentStream: MediaStream | null = null;
+  /** 已处理过的远端 track（按 kind+id 去重，避免 ontrack 重复处理） */
+  private _handledRemoteTrackKeys = new Set<string>();
+  /** onBeforeVideoPlay 处理后的流缓存（key: 原始 stream.id） */
+  private _preparedStreams = new Map<string, MediaStream>();
+  /** 最近一次已绑定渲染的流 ID（用于避免重复 attach） */
+  private _renderedStreamId: string | null = null;
   /** canvas 渲染器（兼容 canvas 目标） */
   private canvasRenderer = new CanvasRenderer();
   /** 当前会话上下文，供 base 事件派发复用 */
@@ -284,7 +290,16 @@ export class RtcPlayer extends RtcBase<
   /** 重置当前播放会话 */
   protected resetSession(): void {
     this._currentStream = null;
+    this._handledRemoteTrackKeys.clear();
+    this._preparedStreams.clear();
+    this._renderedStreamId = null;
     this.canvasRenderer.stop();
+
+    if (this.target && !this.canvasRenderer.isCanvasTarget(this.target)) {
+      this.target.srcObject = null;
+      this.target.onloadedmetadata = null;
+      this.target.onplaying = null;
+    }
 
     if (this.pc) {
       this.pc.close();
@@ -308,8 +323,19 @@ export class RtcPlayer extends RtcBase<
    * 4. 渲染就绪后 onMediaReady
    */
   protected onTrack(event: RTCTrackEvent): void {
-    const ctx = this.createHookContext(PluginPhase.PLAYER_TRACK);
     const stream = event.streams[0];
+    if (!stream) {
+      return;
+    }
+
+    const trackKey = `${event.track.kind}:${event.track.id}`;
+    if (this._handledRemoteTrackKeys.has(trackKey)) {
+      // 同一 kind+track 的重复 ontrack 回调（常见于重协商/状态抖动），直接跳过
+      return;
+    }
+    this._handledRemoteTrackKeys.add(trackKey);
+
+    const ctx = this.createHookContext(PluginPhase.PLAYER_TRACK);
     this._currentStream = stream;
 
     this.pluginManager.callHook(ctx, 'onTrack', stream, event);
@@ -317,8 +343,20 @@ export class RtcPlayer extends RtcBase<
 
     if (!this.target) return;
 
-    const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
-    const finalStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
+    const streamId = stream.id;
+    let finalStream = this._preparedStreams.get(streamId) ?? null;
+
+    if (!finalStream) {
+      const playCtx = this.createHookContext(PluginPhase.PLAYER_BEFORE_VIDEO_PLAY);
+      finalStream = this.pluginManager.pipeHook(playCtx, 'onBeforeVideoPlay', stream);
+      this._preparedStreams.set(streamId, finalStream);
+    }
+
+    if (this._renderedStreamId === finalStream.id) {
+      // 渲染目标已绑定当前流，避免重复 attach 导致后续回调重复触发
+      return;
+    }
+    this._renderedStreamId = finalStream.id;
 
     if (this.canvasRenderer.isCanvasTarget(this.target)) {
       this.canvasRenderer.attach(this.target, finalStream, {
@@ -343,6 +381,10 @@ export class RtcPlayer extends RtcBase<
 
     const mediaTarget = this.target;
     this.canvasRenderer.stop();
+
+    mediaTarget.onloadedmetadata = null;
+    mediaTarget.onplaying = null;
+
     mediaTarget.srcObject = finalStream;
     mediaTarget.muted = this.muted;
 
