@@ -1,11 +1,11 @@
 ---
-title: WebRTC Player - Guide Overview
-description: WebRTC Player guide covering core capabilities, integration paths, and production-oriented practices.
+title: WebRTC Engine - Guide Overview
+description: WebRTC Engine guide covering core capabilities, integration paths, and production-oriented practices.
 ---
 
 # Guide Overview
 
-WebRTC Player is a lightweight WebRTC SDK for real-time media scenarios, providing a unified API for both **playback** and **publishing**.
+WebRTC Engine is a lightweight WebRTC SDK for real-time media scenarios, providing a unified API for both **playback** and **publishing**.
 
 This guide is designed for teams that need fast adoption with reliable production behavior. It focuses on:
 
@@ -29,7 +29,7 @@ This guide is designed for teams that need fast adoption with reliable productio
 
 ```
 ┌─────────────────────────────────────┐
-│            WebRTC Player            │
+│            WebRTC Engine            │
 ├───────────────┬─────────────────────┤
 │   RtcPlayer   │   RtcPublisher      │
 │   (Playback)  │   (Publishing)      │

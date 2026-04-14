@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - Basic Examples
+title: WebRTC Engine - Basic Examples
 description: Basic playback examples covering video/audio/canvas rendering and manual stream binding.
 ---
 
@@ -19,7 +19,7 @@ This page covers common playback patterns:
 ```
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',

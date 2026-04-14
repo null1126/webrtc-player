@@ -4,46 +4,46 @@ layout: home
 head:
   - - link
     - rel: canonical
-      href: https://null1126.github.io/webrtc-player/zh/
+      href: https://null1126.github.io/webrtc-engine/zh/
   - - meta
     - name: keywords
       content: WebRTC, WebRTC播放器, WebRTC推流, WebRTC拉流, 实时视频流, 直播推流, 直播拉流, SRS播放器, ZLMediaKit, monibuca, NPM包, TypeScript, React WebRTC, Vue WebRTC, 视频播放器SDK, WebRTC直播, 低延迟直播, 实时通讯
   - - meta
     - name: description
-      content: WebRTC Player 是面向前端工程化场景的 WebRTC 实时音视频 SDK，支持拉流与推流，基于 TypeScript 构建、零外部运行时依赖，可高效集成到 React、Vue 等应用中。
+      content: WebRTC Engine 是面向前端工程化场景的 WebRTC 实时音视频 SDK，支持拉流与推流，基于 TypeScript 构建、零外部运行时依赖，可高效集成到 React、Vue 等应用中。
   - - meta
     - name: robots
       content: index, follow
   - - meta
     - property: og:site_name
-      content: WebRTC Player
+      content: WebRTC Engine
   - - meta
     - property: og:type
       content: website
   - - meta
     - property: og:title
-      content: WebRTC Player - 面向工程化的 WebRTC 实时音视频 SDK
+      content: WebRTC Engine - 面向工程化的 WebRTC 实时音视频 SDK
   - - meta
     - property: og:description
       content: 面向生产环境的 WebRTC 实时音视频能力封装，支持拉流与推流，API 清晰、集成高效、性能稳定。
   - - meta
     - property: og:url
-      content: https://null1126.github.io/webrtc-player/zh/
+      content: https://null1126.github.io/webrtc-engine/zh/
   - - meta
     - property: og:image
-      content: https://null1126.github.io/webrtc-player/og-image.png
+      content: https://null1126.github.io/webrtc-engine/og-image.png
   - - meta
     - name: twitter:card
       content: summary_large_image
   - - meta
     - name: twitter:title
-      content: WebRTC Player - WebRTC 实时音视频 SDK
+      content: WebRTC Engine - WebRTC 实时音视频 SDK
   - - meta
     - name: twitter:description
       content: 提供拉流与推流一体化能力的 WebRTC SDK，设计简洁、扩展灵活，助力快速构建低延迟实时音视频应用。
 
 hero:
-  name: WebRTC Player
+  name: WebRTC Engine
   text: 实时音视频 SDK
   tagline: 面向生产环境的拉流与推流一体化能力，API 清晰、扩展灵活，帮助你高效构建低延迟实时音视频应用
   actions:
@@ -55,7 +55,7 @@ hero:
       link: /zh/api/
   image:
     src: /logo.svg
-    alt: WebRTC Player
+    alt: WebRTC Engine
 
 features:
   - icon: 🚀

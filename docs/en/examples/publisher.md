@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - Publishing Examples
+title: WebRTC Engine - Publishing Examples
 description: Publishing examples for camera, screen sharing, custom streams, audio-only workflows, and source switching.
 ---
 
@@ -16,7 +16,7 @@ This page focuses on common `RtcPublisher` scenarios:
 ## 1) Camera + microphone publishing
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/camera-stream',

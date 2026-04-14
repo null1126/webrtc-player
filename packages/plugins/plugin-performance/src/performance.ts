@@ -3,7 +3,7 @@ import type {
   RtcPlayerPluginInstance,
   RtcPublisherPlugin,
   RtcPublisherPluginInstance,
-} from '@webrtc-player/core/plugins/types';
+} from '@webrtc-engine/core/plugins/types';
 import type { FpsStats, NetworkStats, PerformanceData, PerformancePluginOptions } from './types';
 
 /** 统一宿主实例类型：播放器或推流器 */

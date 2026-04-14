@@ -4,7 +4,7 @@ title: Vue Integration
 
 # Vue Integration
 
-Use `@webrtc-player/core` directly in Vue projects and manage instance lifecycle with component hooks.
+Use `@webrtc-engine/core` directly in Vue projects and manage instance lifecycle with component hooks.
 
 ## Basic Pattern
 

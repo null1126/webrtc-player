@@ -6,8 +6,8 @@ layout: home
 import { onMounted } from 'vue';
 
 onMounted(() => {
-  if (window.location.pathname === '/webrtc-player/') {
-    window.location.pathname = '/webrtc-player/zh/';
+  if (window.location.pathname === '/webrtc-engine/') {
+    window.location.pathname = '/webrtc-engine/zh/';
   }
 });
 </script>

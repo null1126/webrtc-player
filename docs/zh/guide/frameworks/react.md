@@ -4,7 +4,7 @@ title: React 集成
 
 # React 集成
 
-在 React 项目中可直接使用 `@webrtc-player/core`，并通过 `useEffect` 管理实例生命周期。
+在 React 项目中可直接使用 `@webrtc-engine/core`，并通过 `useEffect` 管理实例生命周期。
 
 ## 基础模式
 

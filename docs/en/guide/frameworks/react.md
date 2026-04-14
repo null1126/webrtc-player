@@ -4,7 +4,7 @@ title: React Integration
 
 # React Integration
 
-Use `@webrtc-player/core` directly in React projects and manage instance lifecycle with `useEffect`.
+Use `@webrtc-engine/core` directly in React projects and manage instance lifecycle with `useEffect`.
 
 ## Basic Pattern
 

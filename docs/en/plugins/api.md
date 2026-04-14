@@ -1,6 +1,6 @@
 ---
-title: WebRTC Player - Plugin API
-description: Plugin API reference for WebRTC Player, including hooks, phases, and instance contracts.
+title: WebRTC Engine - Plugin API
+description: Plugin API reference for WebRTC Engine, including hooks, phases, and instance contracts.
 ---
 
 # Plugin API
@@ -18,7 +18,7 @@ import type {
   RtcPluginCommonHooks,
   RtcPlayerPluginHooks,
   RtcPublisherPluginHooks,
-} from '@webrtc-player/core';
+} from '@webrtc-engine/core';
 ```
 
 ## Core plugin fields

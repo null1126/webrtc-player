@@ -1,11 +1,11 @@
 ---
-title: WebRTC Player - Events
-description: WebRTC Player event model and listening patterns across common, playback, and publishing events.
+title: WebRTC Engine - Events
+description: WebRTC Engine event model and listening patterns across common, playback, and publishing events.
 ---
 
 # Events
 
-WebRTC Player uses an event-driven architecture. You can observe connection transitions, media updates, and runtime failures, then map them into robust business workflows.
+WebRTC Engine uses an event-driven architecture. You can observe connection transitions, media updates, and runtime failures, then map them into robust business workflows.
 
 ## Quick Classification
 

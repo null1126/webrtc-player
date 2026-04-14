@@ -1,18 +1,18 @@
 ---
 title: Custom Signaling
-description: How to implement a custom signaling server for WebRTC Player
+description: How to implement a custom signaling server for WebRTC Engine
 ---
 
 # Custom Signaling
 
-WebRTC itself only handles media transport. **Signaling** is the process of exchanging SDP (Session Description) and ICE candidates between peers. WebRTC Player abstracts this layer through the `SignalingProvider` interface, allowing you to connect to any signaling server.
+WebRTC itself only handles media transport. **Signaling** is the process of exchanging SDP (Session Description) and ICE candidates between peers. WebRTC Engine abstracts this layer through the `SignalingProvider` interface, allowing you to connect to any signaling server.
 
 ## Signaling Interface
 
 All you need to do is implement the `SignalingProvider` interface:
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 interface SignalingProvider {
   /**
@@ -38,7 +38,7 @@ interface SignalingProvider {
 The SDK ships with a built-in HTTP-based signaling implementation, suitable for SRS and similar servers that expose an HTTP POST API:
 
 ```typescript
-import { HttpSignalingProvider } from '@webrtc-player/core';
+import { HttpSignalingProvider } from '@webrtc-engine/core';
 
 const signaling = new HttpSignalingProvider('https://your-server.com/api/signaling');
 ```
@@ -69,7 +69,7 @@ Successful response format:
 If your signaling server uses WebSocket (e.g. some-webcontainers or a custom WebSocket service), implement it like this:
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 class WebSocketSignalingProvider implements SignalingProvider {
   constructor(private wsUrl: string) {}
@@ -113,7 +113,7 @@ class WebSocketSignalingProvider implements SignalingProvider {
 Pass your custom signaling instance via the `signaling` option when creating a player or publisher:
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 // Use custom WebSocket signaling
 const player = new RtcPlayer({
@@ -126,7 +126,7 @@ await player.play();
 ```
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 // Use custom WebSocket signaling
 const publisher = new RtcPublisher({
@@ -152,7 +152,7 @@ The `signaling` option takes priority over `api`:
 ## Complete Example: Authenticated HTTP Signaling
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 class AuthenticatedHttpSignalingProvider implements SignalingProvider {
   constructor(

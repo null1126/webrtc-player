@@ -4,7 +4,7 @@ title: Vue 集成
 
 # Vue 集成
 
-在 Vue 项目中可直接使用 `@webrtc-player/core`，并通过组件生命周期管理实例。
+在 Vue 项目中可直接使用 `@webrtc-engine/core`，并通过组件生命周期管理实例。
 
 ## 基础模式
 

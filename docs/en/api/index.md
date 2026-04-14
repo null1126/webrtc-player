@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - RtcPlayer API
+title: WebRTC Engine - RtcPlayer API
 description: RtcPlayer playback player core class API documentation.
 ---
 
@@ -70,7 +70,7 @@ await player.switchStream('webrtc://localhost/live/newstream');
 Register and install a plugin. Returns `this` for chaining.
 
 ```typescript
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 player.use(createPlayerLoggerPlugin());
 ```
@@ -112,7 +112,7 @@ player.destroy();
 ## Usage Example
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',

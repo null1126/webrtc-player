@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - Getting Started
+title: WebRTC Engine - Getting Started
 description: Complete playback and publishing integration quickly, then scale with framework-specific patterns.
 ---
 
@@ -18,15 +18,15 @@ Before you begin, make sure your environment meets the following requirements:
 ## Installation
 
 ```bash
-pnpm add @webrtc-player/core
+pnpm add @webrtc-engine/core
 # or
-npm install @webrtc-player/core
+npm install @webrtc-engine/core
 ```
 
 ## Playback
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
@@ -43,7 +43,7 @@ await player.play();
 ## Publishing
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',

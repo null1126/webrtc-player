@@ -1,11 +1,11 @@
 ---
 title: Version Management
-description: WebRTC Player version history and release notes.
+description: WebRTC Engine version history and release notes.
 ---
 
 # Version Management
 
-This page summarizes historical releases and the evolution path of WebRTC Player.
+This page summarizes historical releases and the evolution path of WebRTC Engine.
 
 > The latest version is listed first. Click a version to view detailed changes, migration notes, and compatibility impact.
 

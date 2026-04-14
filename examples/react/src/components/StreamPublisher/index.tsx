@@ -4,8 +4,8 @@ import {
   RtcState,
   type MediaRenderTarget,
   type MediaSource,
-} from '@webrtc-player/core';
-import { createPublisherLoggerPlugin } from '@webrtc-player/plugin-logger';
+} from '@webrtc-engine/core';
+import { createPublisherLoggerPlugin } from '@webrtc-engine/plugin-logger';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
 import { LogPanel, useLogs } from '../LogPanel';

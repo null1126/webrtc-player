@@ -5,9 +5,9 @@ import path from 'path';
 import { URL } from 'url';
 import fs from 'fs/promises';
 
-const corePackageName = '@webrtc-player/core';
-const performancePackageName = '@webrtc-player/plugin-performance';
-const loggerPackageName = '@webrtc-player/plugin-logger';
+const corePackageName = '@webrtc-engine/core';
+const performancePackageName = '@webrtc-engine/plugin-performance';
+const loggerPackageName = '@webrtc-engine/plugin-logger';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
@@ -173,7 +173,7 @@ const selectUpdateVersion = async () => {
 
 /**
  * 请选择要构建的包?
- * @returns {Promise<string>} 构建的包: @webrtc-player/core
+ * @returns {Promise<string>} 构建的包: @webrtc-engine/core
  */
 const selectBuildPackage = async () => {
   const packages = await select({

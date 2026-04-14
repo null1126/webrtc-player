@@ -1,6 +1,6 @@
 ---
-title: WebRTC Player - 插件 API
-description: WebRTC Player 插件 API 参考文档，包含插件接口、Hook 类型与 PluginPhase 生命周期定义。
+title: WebRTC Engine - 插件 API
+description: WebRTC Engine 插件 API 参考文档，包含插件接口、Hook 类型与 PluginPhase 生命周期定义。
 ---
 
 # 插件 API
@@ -16,7 +16,7 @@ import type {
   RtcPluginCommonHooks,
   RtcPlayerPluginHooks,
   RtcPublisherPluginHooks,
-} from '@webrtc-player/core';
+} from '@webrtc-engine/core';
 ```
 
 ## 核心配置

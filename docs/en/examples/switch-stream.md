@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - Switch Stream
+title: WebRTC Engine - Switch Stream
 description: Dynamically switch playback sources with state and error handling.
 ---
 
@@ -14,7 +14,7 @@ await player.switchStream('webrtc://localhost/live/newstream');
 ## Full Example
 
 ```typescript
-import { RtcPlayer, RtcState } from '@webrtc-player/core';
+import { RtcPlayer, RtcState } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/camera1',

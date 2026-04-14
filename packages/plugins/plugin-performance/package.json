@@ -1,7 +1,7 @@
 {
-  "name": "@webrtc-player/plugin-performance",
-  "version": "1.0.1",
-  "description": "Performance monitoring plugin for webrtc-player — reports FPS and network stats via callback",
+  "name": "@webrtc-engine/plugin-performance",
+  "version": "1.1.0",
+  "description": "Performance monitoring plugin for WebRTC Engine — reports FPS and network stats via callback",
   "license": "MIT",
   "keywords": [
     "webrtc",
@@ -33,10 +33,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {
-    "@webrtc-player/core": "workspace:*"
+    "@webrtc-engine/core": "workspace:*"
   },
   "devDependencies": {
-    "@webrtc-player/core": "workspace:*",
+    "@webrtc-engine/core": "workspace:*",
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"

@@ -40,7 +40,7 @@ export default function App() {
                 strokeLinejoin="round"
               />
             </svg>
-            <span className="app-header-brand-name">WebRTC Player</span>
+            <span className="app-header-brand-name">WebRTC Engine</span>
             <span className="app-header-tag">DEMO</span>
           </div>
           <span className="app-header-subtitle">推流端 + 拉流端</span>

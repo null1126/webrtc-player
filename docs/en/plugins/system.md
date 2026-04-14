@@ -1,11 +1,11 @@
 ---
-title: WebRTC Player - Plugin System
-description: 'WebRTC Player plugin system overview: architecture goals, integration patterns, and lifecycle.'
+title: WebRTC Engine - Plugin System
+description: 'WebRTC Engine plugin system overview: architecture goals, integration patterns, and lifecycle.'
 ---
 
 # Plugin System
 
-The WebRTC Player plugin system is an extension framework built around Player and Publisher lifecycles.
+The WebRTC Engine plugin system is an extension framework built around Player and Publisher lifecycles.
 It provides a unified hook orchestration model so business capabilities can be composed without coupling to the core runtime implementation.
 
 For hook/type contracts, see [Plugin API](./api).
@@ -35,8 +35,8 @@ You can use either pattern independently, or combine both.
 ### Pattern 1: `plugins` in constructor options
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { RtcPlayer } from '@webrtc-engine/core';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
@@ -51,7 +51,7 @@ await player.play();
 ### Pattern 2: Runtime `.use()` registration
 
 ```typescript
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
 
 player.use(createPerformancePlugin({ onStats: (stats) => console.log(stats) }));
 ```

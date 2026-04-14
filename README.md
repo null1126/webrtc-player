@@ -1,6 +1,6 @@
-# WebRTC Player
+# WebRTC Engine
 
-[English](./README_en.md) · [简体中文](./README.md) · [Demo](https://github.com/null1126/webrtc-player) · [文档](https://null1126.github.io/webrtc-player/zh/)
+[English](./README_en.md) · [简体中文](./README.md) · [Demo](https://github.com/null1126/webrtc-engine) · [文档](https://null1126.github.io/webrtc-engine/zh/)
 
 一款轻量级、框架无关的 WebRTC 视频库，支持浏览器端实时视频播放与推流。**一库双用**：既可拉流播放，也可推流发布。
 
@@ -25,11 +25,11 @@
 ## 安装
 
 ```bash
-npm install @webrtc-player/core
+npm install @webrtc-engine/core
 # 或
-pnpm add @webrtc-player/core
+pnpm add @webrtc-engine/core
 # 或
-yarn add @webrtc-player/core
+yarn add @webrtc-engine/core
 ```
 
 ---
@@ -39,7 +39,7 @@ yarn add @webrtc-player/core
 ### 拉流（播放）
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
@@ -75,7 +75,7 @@ await player.play();
 ### 推流（发布）
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
@@ -235,8 +235,8 @@ enum RtcState {
 
 ## 相关项目
 
-- [webrtc-player](https://github.com/null1126/webrtc-player) — 主项目仓库
-- [webrtc-player 文档](https://webrtc-player.netlify.app/) — 完整文档站点
+- [webrtc-engine](https://github.com/null1126/webrtc-engine) — 主项目仓库
+- [webrtc-engine 文档](https://webrtc-engine.netlify.app/) — 完整文档站点
 
 ---
 
@@ -245,25 +245,25 @@ enum RtcState {
 官方维护的插件包，可按需安装：
 
 ```bash
-npm install @webrtc-player/plugin-logger @webrtc-player/plugin-performance
+npm install @webrtc-engine/plugin-logger @webrtc-engine/plugin-performance
 ```
 
-### `@webrtc-player/plugin-logger`
+### `@webrtc-engine/plugin-logger`
 
 日志插件，记录播放器/推流器生命周期事件（连接状态、ICE 状态、轨道事件、错误等）。
 
 ```typescript
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 player.use(createPlayerLoggerPlugin());
 ```
 
-### `@webrtc-player/plugin-performance`
+### `@webrtc-engine/plugin-performance`
 
 性能监控插件，实时上报 FPS、网络码率、RTT、丢包率等指标。
 
 ```typescript
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
 
 const perf = createPerformancePlugin({
   onStats: (stats) =>
@@ -273,10 +273,10 @@ const perf = createPerformancePlugin({
 player.use(perf);
 ```
 
-详细用法请参考[插件系统文档](https://null1126.github.io/webrtc-player/zh/guide/plugins/)。
+详细用法请参考[插件系统文档](https://null1126.github.io/webrtc-engine/zh/guide/plugins/)。
 
 ---
 
 ## 许可证
 
-[ISC](./LICENSE) — Copyright (c) 2024-present WebRTC Player Contributors
+[ISC](./LICENSE) — Copyright (c) 2024-present WebRTC Engine Contributors

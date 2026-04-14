@@ -4,47 +4,47 @@ layout: home
 head:
   - - link
     - rel: canonical
-      href: https://null1126.github.io/webrtc-player/en/
+      href: https://null1126.github.io/webrtc-engine/en/
   - - meta
     - name: keywords
-      content: WebRTC, WebRTC player, WebRTC publishing, WebRTC subscriber, real-time video streaming, live streaming, SRS player, ZLMediaKit, monibuca, NPM package, TypeScript, React WebRTC, Vue WebRTC, video player SDK, WebRTC live, low latency streaming, WebRTC API
+      content: WebRTC, WebRTC engine, WebRTC publishing, WebRTC subscriber, real-time video streaming, live streaming, SRS player, ZLMediaKit, monibuca, NPM package, TypeScript, React WebRTC, Vue WebRTC, video player SDK, WebRTC live, low latency streaming, WebRTC API
   - - meta
     - name: description
-      content: WebRTC Player is a lightweight WebRTC video player npm package supporting both playback and publishing. Written in TypeScript, zero external dependencies, tree-shakable. Integrate into React, Vue, or any frontend project in minutes.
+      content: WebRTC Engine is a lightweight WebRTC video player npm package supporting both playback and publishing. Written in TypeScript, zero external dependencies, tree-shakable. Integrate into React, Vue, or any frontend project in minutes.
   - - meta
     - name: robots
       content: index, follow
   - - meta
     - property: og:site_name
-      content: WebRTC Player
+      content: WebRTC Engine
   - - meta
     - property: og:type
       content: website
   - - meta
     - property: og:title
-      content: WebRTC Player - Lightweight WebRTC Video Player (Playback & Publishing)
+      content: WebRTC Engine - Lightweight WebRTC Video Player (Playback & Publishing)
   - - meta
     - property: og:description
       content: Lightweight WebRTC video player supporting both playback and publishing. Real-time video streaming based on WebRTC protocol, simple and performant.
   - - meta
     - property: og:url
-      content: https://null1126.github.io/webrtc-player/en/
+      content: https://null1126.github.io/webrtc-engine/en/
   - - meta
     - property: og:image
-      content: https://null1126.github.io/webrtc-player/og-image.png
+      content: https://null1126.github.io/webrtc-engine/og-image.png
   - - meta
     - name: twitter:card
       content: summary_large_image
   - - meta
     - name: twitter:title
-      content: WebRTC Player - Lightweight WebRTC Video Player
+      content: WebRTC Engine - Lightweight WebRTC Video Player
   - - meta
     - name: twitter:description
       content: Lightweight WebRTC video player supporting playback and publishing. Clean API design, implement in just a few lines.
 
 hero:
-  name: WebRTC Player
-  text: Lightweight WebRTC Player
+  name: WebRTC Engine
+  text: Lightweight WebRTC Engine
   tagline: Supports playback and publishing, real-time video streaming based on WebRTC protocol, simple and performant
   actions:
     - theme: brand
@@ -58,7 +58,7 @@ hero:
       link: /en/api/
   image:
     src: /logo.svg
-    alt: WebRTC Player
+    alt: WebRTC Engine
 
 features:
   - icon: 🚀

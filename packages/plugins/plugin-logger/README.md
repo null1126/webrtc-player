@@ -1,6 +1,6 @@
-# @webrtc-player/plugin-logger
+# @webrtc-engine/plugin-logger
 
-[主项目](https://github.com/null1126/webrtc-player)
+[主项目](https://github.com/null1126/webrtc-engine)
 
 日志插件，拦截 `RtcPlayer` 和 `RtcPublisher` 的生命周期事件，通过回调函数输出结构化日志。
 
@@ -9,17 +9,17 @@
 ## 安装
 
 ```bash
-npm install @webrtc-player/plugin-logger
+npm install @webrtc-engine/plugin-logger
 # 或
-pnpm add @webrtc-player/plugin-logger
+pnpm add @webrtc-engine/plugin-logger
 # 或
-yarn add @webrtc-player/plugin-logger
+yarn add @webrtc-engine/plugin-logger
 ```
 
 需要 peer dependency：
 
 ```bash
-npm install @webrtc-player/core
+npm install @webrtc-engine/core
 ```
 
 ---
@@ -29,8 +29,8 @@ npm install @webrtc-player/core
 ### 拉流端
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { RtcPlayer } from '@webrtc-engine/core';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 const logger = createPlayerLoggerPlugin({ includeDebug: false }, (entry) => {
   const prefix = entry.level === 'error' ? '❌' : entry.level === 'warn' ? '⚠️' : 'ℹ️';
@@ -48,8 +48,8 @@ await player.play();
 ### 推流端
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
-import { createPublisherLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { RtcPublisher } from '@webrtc-engine/core';
+import { createPublisherLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 const logger = createPublisherLoggerPlugin({ includeDebug: false }, (entry) => {
   const prefix = entry.level === 'error' ? '❌' : entry.level === 'warn' ? '⚠️' : 'ℹ️';
@@ -181,4 +181,4 @@ try {
 
 ## 许可证
 
-[MIT](./LICENSE) — Copyright (c) 2024-present WebRTC Player Contributors
+[MIT](./LICENSE) — Copyright (c) 2024-present WebRTC Engine Contributors

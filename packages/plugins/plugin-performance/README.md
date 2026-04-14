@@ -1,6 +1,6 @@
-# @webrtc-player/plugin-performance
+# @webrtc-engine/plugin-performance
 
-[主项目](https://github.com/null1126/webrtc-player)
+[主项目](https://github.com/null1126/webrtc-engine)
 
 性能监控插件，拦截 `RtcPlayer` 的视频帧渲染与 WebRTC 连接统计，定时通过回调输出 FPS、网络带宽、丢包率、RTT 等关键指标。
 
@@ -9,17 +9,17 @@
 ## 安装
 
 ```bash
-npm install @webrtc-player/plugin-performance
+npm install @webrtc-engine/plugin-performance
 # 或
-pnpm add @webrtc-player/plugin-performance
+pnpm add @webrtc-engine/plugin-performance
 # 或
-yarn add @webrtc-player/plugin-performance
+yarn add @webrtc-engine/plugin-performance
 ```
 
 需要 peer dependency：
 
 ```bash
-npm install @webrtc-player/core
+npm install @webrtc-engine/core
 ```
 
 ---
@@ -27,8 +27,8 @@ npm install @webrtc-player/core
 ## 快速开始
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { RtcPlayer } from '@webrtc-engine/core';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
 
 const perf = createPerformancePlugin({ interval: 1000 }, (data) => {
   console.log(`[${data.url}]`);
@@ -153,4 +153,4 @@ await player.play();
 
 ## 许可证
 
-[MIT](./LICENSE) — Copyright (c) 2024-present WebRTC Player Contributors
+[MIT](./LICENSE) — Copyright (c) 2024-present WebRTC Engine Contributors

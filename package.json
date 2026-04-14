@@ -1,17 +1,17 @@
 {
-  "name": "@webrtc-player",
+  "name": "webrtc-engine-monorepo",
   "version": "1.0.0",
-  "description": "WebRTC Player monorepo",
+  "description": "WebRTC Engine monorepo",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
     "prebuild": "pnpm typecheck && pnpm test",
-    "build": "turbo build --filter=@webrtc-player/core",
+    "build": "turbo build --filter=@webrtc-engine/core",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test --filter=@webrtc-player/core --filter=@webrtc-player/plugin-*",
-    "test:coverage": "turbo test:coverage --filter=@webrtc-player/core --filter=@webrtc-player/plugin-*",
+    "test": "turbo test --filter=@webrtc-engine/core --filter=@webrtc-engine/plugin-*",
+    "test:coverage": "turbo test:coverage --filter=@webrtc-engine/core --filter=@webrtc-engine/plugin-*",
     "prepare": "husky",
     "lint:fix": "eslint . --fix; prettier --write .",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -32,12 +32,12 @@
     "media"
   ],
   "author": "null1126",
-  "homepage": "https://github.com/null1126/webrtc-player",
+  "homepage": "https://github.com/null1126/webrtc-engine",
   "repository": {
     "type": "git",
-    "url": "https://github.com/null1126/webrtc-player"
+    "url": "https://github.com/null1126/webrtc-engine"
   },
-  "license": "ISC",
+  "license": "MIT",
   "config": {
     "cz-customizable": {
       "config": ".cz-config.cjs"

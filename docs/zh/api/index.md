@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - RtcPlayer API
+title: WebRTC Engine - RtcPlayer API
 description: RtcPlayer 拉流播放器核心类 API 文档。
 ---
 
@@ -70,7 +70,7 @@ await player.switchStream('webrtc://localhost/live/newstream');
 注册并安装插件，返回实例自身，支持链式调用。
 
 ```typescript
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 player.use(createPlayerLoggerPlugin());
 ```
@@ -112,7 +112,7 @@ player.destroy();
 ## 使用示例
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',

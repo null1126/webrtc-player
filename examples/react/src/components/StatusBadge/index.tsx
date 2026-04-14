@@ -1,4 +1,4 @@
-import { RtcState } from '@webrtc-player/core';
+import { RtcState } from '@webrtc-engine/core';
 import './index.css';
 
 const STATE_LABELS: Record<RtcState, string> = {

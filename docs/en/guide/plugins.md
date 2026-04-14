@@ -1,6 +1,6 @@
 ---
-title: WebRTC Player - Plugin System
-description: Entry point for WebRTC Player plugin capabilities and extension guides.
+title: WebRTC Engine - Plugin System
+description: Entry point for WebRTC Engine plugin capabilities and extension guides.
 ---
 
 # Plugin System

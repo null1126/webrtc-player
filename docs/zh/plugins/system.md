@@ -1,11 +1,11 @@
 ---
-title: WebRTC Player - 插件系统
-description: WebRTC Player 插件系统文档，介绍插件机制、接入方式与最佳实践。
+title: WebRTC Engine - 插件系统
+description: WebRTC Engine 插件系统文档，介绍插件机制、接入方式与最佳实践。
 ---
 
 # 插件系统
 
-WebRTC Player 插件系统是围绕播放器（Player）与推流器（Publisher）生命周期构建的扩展框架。
+WebRTC Engine 插件系统是围绕播放器（Player）与推流器（Publisher）生命周期构建的扩展框架。
 它通过统一的 Hook 调度机制，在不侵入核心实现的前提下，为业务侧提供可组合、可治理、可演进的扩展能力。
 
 ## 系统目标
@@ -30,8 +30,8 @@ WebRTC Player 插件系统是围绕播放器（Player）与推流器（Publisher
 ### 方式一：构造参数 `plugins`
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { RtcPlayer } from '@webrtc-engine/core';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
@@ -46,7 +46,7 @@ await player.play();
 ### 方式二：运行时 `.use()`
 
 ```typescript
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
 
 player.use(createPerformancePlugin({ onStats: (stats) => console.log(stats) }));
 ```

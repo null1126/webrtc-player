@@ -1,18 +1,18 @@
 ---
 title: 自定义信令
-description: 如何为 WebRTC Player 实现自定义信令服务器对接
+description: 如何为 WebRTC Engine 实现自定义信令服务器对接
 ---
 
 # 自定义信令
 
-WebRTC 本身只负责媒体传输，**信令（Signaling）**负责在 Peer 之间交换 SDP（会话描述）和 ICE 候选地址。WebRTC Player 通过信令接口抽象出这一层，支持你对接任意信令服务器。
+WebRTC 本身只负责媒体传输，**信令（Signaling）**负责在 Peer 之间交换 SDP（会话描述）和 ICE 候选地址。WebRTC Engine 通过信令接口抽象出这一层，支持你对接任意信令服务器。
 
 ## 信令接口
 
 只需实现 `SignalingProvider` 接口即可：
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 interface SignalingProvider {
   /**
@@ -38,7 +38,7 @@ interface SignalingProvider {
 SDK 内置了一个基于 HTTP POST 的信令实现，适合对接 SRS 等标准 HTTP-FLV/WebSocket 风格的信令接口：
 
 ```typescript
-import { HttpSignalingProvider } from '@webrtc-player/core';
+import { HttpSignalingProvider } from '@webrtc-engine/core';
 
 const signaling = new HttpSignalingProvider('https://your-server.com/api/signaling');
 ```
@@ -69,7 +69,7 @@ const signaling = new HttpSignalingProvider('https://your-server.com/api/signali
 如果你的信令服务器使用 WebSocket 协议（例如 some-webcontainers 或纯 WebSocket 服务），可以这样实现：
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 class WebSocketSignalingProvider implements SignalingProvider {
   constructor(private wsUrl: string) {}
@@ -113,7 +113,7 @@ class WebSocketSignalingProvider implements SignalingProvider {
 在创建播放器或推流器时，通过 `signaling` 配置项传入自定义信令实例：
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 // 使用自定义 WebSocket 信令
 const player = new RtcPlayer({
@@ -126,7 +126,7 @@ await player.play();
 ```
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 // 使用自定义 WebSocket 信令
 const publisher = new RtcPublisher({
@@ -152,7 +152,7 @@ await publisher.publish();
 ## 完整示例：自定义 HTTP 信令（带鉴权）
 
 ```typescript
-import type { SignalingProvider } from '@webrtc-player/core';
+import type { SignalingProvider } from '@webrtc-engine/core';
 
 class AuthenticatedHttpSignalingProvider implements SignalingProvider {
   constructor(

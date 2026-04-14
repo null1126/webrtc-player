@@ -1,11 +1,11 @@
 ---
 title: 版本管理
-description: WebRTC Player 历史版本与更新内容。
+description: WebRTC Engine 历史版本与更新内容。
 ---
 
 # 版本管理
 
-这里汇总了 WebRTC Player 的历史版本发布记录与关键演进路径。
+这里汇总了 WebRTC Engine 的历史版本发布记录与关键演进路径。
 
 ## 版本演进概览
 

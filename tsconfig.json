@@ -34,13 +34,13 @@
     "preserveSymlinks": true,
     "baseUrl": ".",
     "paths": {
-      "@webrtc-player/*": ["packages/*/src"],
-      "@webrtc-player/core": ["packages/core/src"],
-      "@webrtc-player/core/*": ["packages/core/src/*"],
-      "@webrtc-player/plugin-performance": ["packages/plugins/plugin-performance/src"],
-      "@webrtc-player/plugin-performance/*": ["packages/plugins/plugin-performance/src/*"],
-      "@webrtc-player/plugins": ["packages/plugins/src"],
-      "@webrtc-player/plugins/*": ["packages/plugins/src/*"]
+      "@webrtc-engine/*": ["packages/*/src"],
+      "@webrtc-engine/core": ["packages/core/src"],
+      "@webrtc-engine/core/*": ["packages/core/src/*"],
+      "@webrtc-engine/plugin-performance": ["packages/plugins/plugin-performance/src"],
+      "@webrtc-engine/plugin-performance/*": ["packages/plugins/plugin-performance/src/*"],
+      "@webrtc-engine/plugins": ["packages/plugins/src"],
+      "@webrtc-engine/plugins/*": ["packages/plugins/src/*"]
     }
   },
   "include": ["packages/*/src", "examples/*/src"],

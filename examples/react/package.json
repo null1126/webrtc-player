@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@webrtc-player/core": "workspace:*",
-    "@webrtc-player/plugin-performance": "workspace:*",
-    "@webrtc-player/plugin-logger": "workspace:*",
+    "@webrtc-engine/core": "workspace:*",
+    "@webrtc-engine/plugin-performance": "workspace:*",
+    "@webrtc-engine/plugin-logger": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

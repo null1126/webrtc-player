@@ -4,10 +4,10 @@ import {
   RtcState,
   type MediaRenderTarget,
   type RtcPlayerPlugin,
-} from '@webrtc-player/core';
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
-import type { PerformanceData } from '@webrtc-player/plugin-performance';
+} from '@webrtc-engine/core';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
+import type { PerformanceData } from '@webrtc-engine/plugin-performance';
 import { StatusBadge } from '../StatusBadge';
 import { StreamVideo } from '../StreamVideo';
 import { LogPanel, useLogs } from '../LogPanel';

@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - 切换视频源
+title: WebRTC Engine - 切换视频源
 description: 播放过程中动态切换视频源，并保留状态监听与错误处理。
 ---
 
@@ -14,7 +14,7 @@ await player.switchStream('webrtc://localhost/live/newstream');
 ## 完整示例
 
 ```typescript
-import { RtcPlayer, RtcState } from '@webrtc-player/core';
+import { RtcPlayer, RtcState } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/camera1',

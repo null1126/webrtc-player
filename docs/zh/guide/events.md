@@ -1,11 +1,11 @@
 ---
-title: WebRTC Player - 事件监听
-description: WebRTC Player 事件模型与监听方式，覆盖通用、拉流与推流事件。
+title: WebRTC Engine - 事件监听
+description: WebRTC Engine 事件模型与监听方式，覆盖通用、拉流与推流事件。
 ---
 
 # 事件监听
 
-WebRTC Player 采用事件驱动模型。你可以通过事件感知连接状态、媒体轨道变化与错误信息，并据此实现可观测、可恢复的实时链路。
+WebRTC Engine 采用事件驱动模型。你可以通过事件感知连接状态、媒体轨道变化与错误信息，并据此实现可观测、可恢复的实时链路。
 
 ## 事件详解
 

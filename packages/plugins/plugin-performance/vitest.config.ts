@@ -5,7 +5,7 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     test: {
-      name: '@webrtc-player/plugin-performance',
+      name: '@webrtc-engine/plugin-performance',
       root: '.',
       include: ['tests/**/*.test.ts'],
       coverage: {

@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - RtcPublisher API
+title: WebRTC Engine - RtcPublisher API
 description: RtcPublisher publisher core class API documentation.
 ---
 

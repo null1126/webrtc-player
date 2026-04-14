@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - RtcPublisher API
+title: WebRTC Engine - RtcPublisher API
 description: RtcPublisher 推流器核心类 API 文档。
 ---
 

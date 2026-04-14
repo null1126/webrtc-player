@@ -2,14 +2,14 @@ import { defineConfig } from 'vitepress';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: 'WebRTC Player',
+  title: 'WebRTC Engine',
   description: 'A lightweight WebRTC video player library',
 
   // GitHub Pages 部署路径
   // ⚠️ 请根据你的 GitHub 仓库路径修改：
-  //   - 用户仓库: /webrtc-player/
-  //   - 组织仓库: /your-org/webrtc-player/
-  base: '/webrtc-player/',
+  //   - 用户仓库: /webrtc-engine/
+  //   - 组织仓库: /your-org/webrtc-engine/
+  base: '/webrtc-engine/',
 
   // 默认暗黑主题
   appearance: 'dark',
@@ -37,16 +37,16 @@ export default defineConfig({
               {
                 '@context': 'https://schema.org',
                 '@type': 'SoftwareApplication',
-                name: 'WebRTC Player',
-                alternateName: 'webrtc-player',
+                name: 'WebRTC Engine',
+                alternateName: 'webrtc-engine',
                 applicationCategory: 'MultimediaApplication',
                 operatingSystem: 'Web (Browser)',
                 programmingLanguage: ['TypeScript', 'JavaScript'],
                 description:
                   '轻量级 WebRTC 视频播放器 npm 包，支持拉流与推流功能。TypeScript 编写，零外部依赖，可集成 React、Vue 等前端项目。',
-                url: 'https://null1126.github.io/webrtc-player/',
-                downloadUrl: 'https://www.npmjs.com/package/webrtc-player',
-                installUrl: 'https://www.npmjs.com/package/webrtc-player',
+                url: 'https://null1126.github.io/webrtc-engine/',
+                downloadUrl: 'https://www.npmjs.com/package/webrtc-engine',
+                installUrl: 'https://www.npmjs.com/package/webrtc-engine',
                 offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
                 author: {
                   '@type': 'Person',
@@ -75,42 +75,42 @@ export default defineConfig({
                 mainEntity: [
                   {
                     '@type': 'Question',
-                    name: 'WebRTC Player 支持哪些流媒体服务器？',
+                    name: 'WebRTC Engine 支持哪些流媒体服务器？',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'WebRTC Player 支持所有兼容 WebRTC 协议的流媒体服务器，包括但不限于 SRS、ZLMediaKit、monibuca 等主流服务器。',
+                      text: 'WebRTC Engine 支持所有兼容 WebRTC 协议的流媒体服务器，包括但不限于 SRS、ZLMediaKit、monibuca 等主流服务器。',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'WebRTC Player 如何安装？',
+                    name: 'WebRTC Engine 如何安装？',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: '通过 npm 安装：npm install webrtc-player 或 pnpm add webrtc-player。也可以通过 CDN 直接引入。安装后只需几行代码即可完成 WebRTC 视频播放或推流。',
+                      text: '通过 npm 安装：npm install webrtc-engine 或 pnpm add webrtc-engine。也可以通过 CDN 直接引入。安装后只需几行代码即可完成 WebRTC 视频播放或推流。',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'WebRTC Player 支持哪些前端框架？',
+                    name: 'WebRTC Engine 支持哪些前端框架？',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'WebRTC Player 是框架无关的原生 JavaScript 库，可直接用于原生 JS、React、Vue、Angular 等任何前端项目。',
+                      text: 'WebRTC Engine 是框架无关的原生 JavaScript 库，可直接用于原生 JS、React、Vue、Angular 等任何前端项目。',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'WebRTC Player 支持推流吗？',
+                    name: 'WebRTC Engine 支持推流吗？',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: '支持。WebRTC Player 同时支持拉流（从服务器播放视频）和推流（采集本地摄像头/麦克风/屏幕并推送到服务器）。',
+                      text: '支持。WebRTC Engine 同时支持拉流（从服务器播放视频）和推流（采集本地摄像头/麦克风/屏幕并推送到服务器）。',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'WebRTC Player 有 TypeScript 类型支持吗？',
+                    name: 'WebRTC Engine 有 TypeScript 类型支持吗？',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: '有。WebRTC Player 全程使用 TypeScript 编写，提供完整的类型定义，无需额外安装 @types 包。',
+                      text: '有。WebRTC Engine 全程使用 TypeScript 编写，提供完整的类型定义，无需额外安装 @types 包。',
                     },
                   },
                 ],
@@ -141,16 +141,16 @@ export default defineConfig({
               {
                 '@context': 'https://schema.org',
                 '@type': 'SoftwareApplication',
-                name: 'WebRTC Player',
-                alternateName: 'webrtc-player',
+                name: 'WebRTC Engine',
+                alternateName: 'webrtc-engine',
                 applicationCategory: 'MultimediaApplication',
                 operatingSystem: 'Web (Browser)',
                 programmingLanguage: ['TypeScript', 'JavaScript'],
                 description:
                   'Lightweight WebRTC video player npm package supporting both playback and publishing. Written in TypeScript, zero external dependencies. Works with React, Vue, or any frontend framework.',
-                url: 'https://null1126.github.io/webrtc-player/',
-                downloadUrl: 'https://www.npmjs.com/package/webrtc-player',
-                installUrl: 'https://www.npmjs.com/package/webrtc-player',
+                url: 'https://null1126.github.io/webrtc-engine/',
+                downloadUrl: 'https://www.npmjs.com/package/webrtc-engine',
+                installUrl: 'https://www.npmjs.com/package/webrtc-engine',
                 offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
                 author: {
                   '@type': 'Person',
@@ -179,42 +179,42 @@ export default defineConfig({
                 mainEntity: [
                   {
                     '@type': 'Question',
-                    name: 'What streaming servers does WebRTC Player support?',
+                    name: 'What streaming servers does WebRTC Engine support?',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'WebRTC Player supports any WebRTC-compatible media server, including but not limited to SRS, ZLMediaKit, and monibuca.',
+                      text: 'WebRTC Engine supports any WebRTC-compatible media server, including but not limited to SRS, ZLMediaKit, and monibuca.',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'How do I install WebRTC Player?',
+                    name: 'How do I install WebRTC Engine?',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'Install via npm: npm install webrtc-player or pnpm add webrtc-player. You can also use CDN. After installation, playing or publishing a WebRTC stream requires only a few lines of code.',
+                      text: 'Install via npm: npm install webrtc-engine or pnpm add webrtc-engine. You can also use CDN. After installation, playing or publishing a WebRTC stream requires only a few lines of code.',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'Does WebRTC Player work with React or Vue?',
+                    name: 'Does WebRTC Engine work with React or Vue?',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'Yes. WebRTC Player is a framework-agnostic native JavaScript library. It works seamlessly with React, Vue, Angular, or plain JavaScript.',
+                      text: 'Yes. WebRTC Engine is a framework-agnostic native JavaScript library. It works seamlessly with React, Vue, Angular, or plain JavaScript.',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'Can WebRTC Player publish streams as well as play them?',
+                    name: 'Can WebRTC Engine publish streams as well as play them?',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'Yes. WebRTC Player supports both playback (subscribe streams from a media server) and publishing (capture camera/microphone/screen and send to a server).',
+                      text: 'Yes. WebRTC Engine supports both playback (subscribe streams from a media server) and publishing (capture camera/microphone/screen and send to a server).',
                     },
                   },
                   {
                     '@type': 'Question',
-                    name: 'Does WebRTC Player include TypeScript types?',
+                    name: 'Does WebRTC Engine include TypeScript types?',
                     acceptedAnswer: {
                       '@type': 'Answer',
-                      text: 'Yes. WebRTC Player is written entirely in TypeScript and ships with complete type definitions. No @types package needed.',
+                      text: 'Yes. WebRTC Engine is written entirely in TypeScript and ships with complete type definitions. No @types package needed.',
                     },
                   },
                 ],
@@ -229,7 +229,7 @@ export default defineConfig({
   // 全局主题配置（侧边栏和 footer 跨语言共享，通过路径自动匹配）
   themeConfig: {
     logo: '/logo.svg',
-    socialLinks: [{ icon: 'github', link: 'https://github.com/null1126/webrtc-player' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/null1126/webrtc-engine' }],
     search: {
       provider: 'local',
       options: {
@@ -392,7 +392,7 @@ export default defineConfig({
     // footer
     footer: {
       message: '基于 MIT 许可证发布',
-      copyright: 'Copyright © 2026 WebRTC Player',
+      copyright: 'Copyright © 2026 WebRTC Engine',
     },
   },
 
@@ -400,7 +400,7 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#ffffff' }],
-    ['link', { rel: 'canonical', href: 'https://null1126.github.io/webrtc-player/' }],
+    ['link', { rel: 'canonical', href: 'https://null1126.github.io/webrtc-engine/' }],
     [
       'style',
       { type: 'text/css' },

@@ -1,4 +1,4 @@
-import type { RtcPublisherPlugin, PluginPhaseValue } from '@webrtc-player/core/plugins/types';
+import type { RtcPublisherPlugin, PluginPhaseValue } from '@webrtc-engine/core/plugins/types';
 import type { LogCallback, LogLevel, LoggerPluginOptions } from './types';
 import { formatTime, getSourceName, nextId } from './utils';
 

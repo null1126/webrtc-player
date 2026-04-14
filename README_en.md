@@ -1,6 +1,6 @@
-# WebRTC Player
+# WebRTC Engine
 
-[简体中文](./README.md) · [English](./README_en.md) · [Demo](https://github.com/null1126/webrtc-player) · [Documentation](https://null1126.github.io/webrtc-player/en/)
+[简体中文](./README.md) · [English](./README_en.md) · [Demo](https://github.com/null1126/webrtc-engine) · [Documentation](https://null1126.github.io/webrtc-engine/en/)
 
 A lightweight, framework-agnostic WebRTC library for browser-based real-time video streaming. Supports both **playback** (subscribe) and **publishing** (push).
 
@@ -25,11 +25,11 @@ A lightweight, framework-agnostic WebRTC library for browser-based real-time vid
 ## Installation
 
 ```bash
-npm install @webrtc-player/core
+npm install @webrtc-engine/core
 # or
-pnpm add @webrtc-player/core
+pnpm add @webrtc-engine/core
 # or
-yarn add @webrtc-player/core
+yarn add @webrtc-engine/core
 ```
 
 ---
@@ -39,7 +39,7 @@ yarn add @webrtc-player/core
 ### Playback (Subscribe)
 
 ```typescript
-import { RtcPlayer } from '@webrtc-player/core';
+import { RtcPlayer } from '@webrtc-engine/core';
 
 const player = new RtcPlayer({
   url: 'webrtc://localhost/live/livestream',
@@ -75,7 +75,7 @@ await player.play();
 ### Publishing (Push)
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/pushstream',
@@ -235,8 +235,8 @@ enum RtcState {
 
 ## Related Projects
 
-- [webrtc-player](https://github.com/null1126/webrtc-player) — Main repository
-- [webrtc-player Documentation](https://webrtc-player.netlify.app/) — Full documentation site
+- [webrtc-engine](https://github.com/null1126/webrtc-engine) — Main repository
+- [WebRTC Engine Documentation](https://webrtc-engine.netlify.app/) — Full documentation site
 
 ---
 
@@ -245,25 +245,25 @@ enum RtcState {
 Officially maintained plugins, install as needed:
 
 ```bash
-npm install @webrtc-player/plugin-logger @webrtc-player/plugin-performance
+npm install @webrtc-engine/plugin-logger @webrtc-engine/plugin-performance
 ```
 
-### `@webrtc-player/plugin-logger`
+### `@webrtc-engine/plugin-logger`
 
 Logging plugin that records player/publisher lifecycle events (connection state, ICE state, track events, errors, etc.).
 
 ```typescript
-import { createPlayerLoggerPlugin } from '@webrtc-player/plugin-logger';
+import { createPlayerLoggerPlugin } from '@webrtc-engine/plugin-logger';
 
 player.use(createPlayerLoggerPlugin());
 ```
 
-### `@webrtc-player/plugin-performance`
+### `@webrtc-engine/plugin-performance`
 
 Performance monitoring plugin reporting real-time FPS, bitrate, RTT, packet loss, and more.
 
 ```typescript
-import { createPerformancePlugin } from '@webrtc-player/plugin-performance';
+import { createPerformancePlugin } from '@webrtc-engine/plugin-performance';
 
 const perf = createPerformancePlugin({
   onStats: (stats) =>
@@ -273,10 +273,10 @@ const perf = createPerformancePlugin({
 player.use(perf);
 ```
 
-See the [Plugin System documentation](https://null1126.github.io/webrtc-player/en/guide/plugins/) for full usage.
+See the [Plugin System documentation](https://null1126.github.io/webrtc-engine/en/guide/plugins/) for full usage.
 
 ---
 
 ## License
 
-[ISC](./LICENSE) — Copyright (c) 2024-present WebRTC Player Contributors
+[ISC](./LICENSE) — Copyright (c) 2024-present WebRTC Engine Contributors

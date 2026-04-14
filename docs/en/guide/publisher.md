@@ -1,5 +1,5 @@
 ---
-title: WebRTC Player - Publishing Guide
+title: WebRTC Engine - Publishing Guide
 description: Build stable publishing workflows with RtcPublisher, including source configuration, switching, and lifecycle control.
 ---
 
@@ -12,7 +12,7 @@ This guide focuses on practical publishing workflows, source switching, and prod
 ## Basic Usage
 
 ```typescript
-import { RtcPublisher } from '@webrtc-player/core';
+import { RtcPublisher } from '@webrtc-engine/core';
 
 const publisher = new RtcPublisher({
   url: 'webrtc://localhost/live/mystream',
