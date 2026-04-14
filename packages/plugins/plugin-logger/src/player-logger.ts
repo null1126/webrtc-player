@@ -5,11 +5,6 @@ import { formatTime, nextId } from './utils';
 /**
  * 创建拉流日志插件。
  *
- * 设计说明：
- * - 该插件仅做“被动观测”，不改写业务行为。
- * - 通过 Hook 记录关键状态、信令、轨道与错误信息。
- * - 适合线上问题排查与研发联调。
- *
  * @param options 插件配置（如是否输出 debug 日志）
  * @param callback 日志回调
  */
@@ -19,10 +14,7 @@ export function createPlayerLoggerPlugin(
 ): RtcPlayerPlugin {
   const { includeDebug = false } = options;
 
-  /**
-   * 拦截器对象。
-   * 采用先定义再一次性挂载的方式，便于 install 生命周期内组织逻辑。
-   */
+  /** 拦截器对象。 */
   const interceptors: Partial<RtcPlayerPlugin> = {};
 
   const plugin: RtcPlayerPlugin = {

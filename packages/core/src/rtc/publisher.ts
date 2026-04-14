@@ -21,13 +21,9 @@ import type {
 import type { PublisherSignalingProvider } from '../signaling/types';
 
 /**
- * WebRTC 推流端实现。
+ * WebRTC 推流端。
  *
- * 主要职责：
- * 1. 采集本地媒体源（camera / microphone / screen / custom）
- * 2. 将轨道绑定到 PeerConnection 并完成协商
- * 3. 管理推流生命周期（start / stop / switchSource）
- * 4. 在关键时机触发插件 Hook，支持观测与改写能力
+ * 负责采集本地媒体、绑定发送轨道并完成信令协商。
  */
 export class RtcPublisher extends RtcBase<
   RtcPublisherEvents,
@@ -35,21 +31,21 @@ export class RtcPublisher extends RtcBase<
   RtcPublisherPluginInstance,
   PublisherSignalingProvider
 > {
-  /** 当前输入源定义 */
+  /** 当前输入源。 */
   private _source: MediaSource;
-  /** 本地预览目标元素 */
+  /** 本地预览目标。 */
   private target?: MediaRenderTarget;
-  /** 预览静音标记 */
+  /** 是否静音。 */
   private muted: boolean;
-  /** 当前本地采集流 */
+  /** 当前本地采集流。 */
   private localStream: MediaStream | null = null;
-  /** 当前已创建的发送 transceiver 列表 */
+  /** 已创建的发送 transceiver 列表。 */
   private activeTransceivers: RTCRtpTransceiver[] = [];
-  /** canvas 预览渲染器 */
+  /** canvas 预览渲染器。 */
   private canvasRenderer = new CanvasRenderer();
-  /** start 生命周期上下文（供 base 事件转发复用） */
+  /** 启动阶段上下文。 */
   private _startCtx: HookContext<RtcPublisherPluginInstance> | null = null;
-  /** track 生命周期事件解绑集合 */
+  /** track 生命周期解绑集合。 */
   private trackEventUnsubs: Array<() => void> = [];
 
   constructor(options: RtcPublisherOptions) {
@@ -69,27 +65,27 @@ export class RtcPublisher extends RtcBase<
     }
   }
 
-  /** 当前输入源（只读） */
+  /** 当前输入源（只读）。 */
   get source(): MediaSource {
     return this._source;
   }
 
-  /** 获取当前本地流 */
+  /** 获取当前本地流。 */
   getStream(): MediaStream | null {
     return this.localStream;
   }
 
-  /** 获取底层 PeerConnection */
+  /** 获取底层 PeerConnection。 */
   getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
   }
 
-  /** 获取当前预览目标 */
+  /** 获取当前预览目标。 */
   getTargetElement(): MediaRenderTarget | undefined {
     return this.target;
   }
 
-  /** 覆盖销毁阶段，用于插件上下文标记 */
+  /** 覆盖销毁阶段，用于插件上下文标记。 */
   protected override getDestroyPhase(): string {
     return PluginPhase.PUBLISHER_DESTROY;
   }
@@ -97,13 +93,7 @@ export class RtcPublisher extends RtcBase<
   /**
    * 启动推流。
    *
-   * 执行顺序：
-   * 1. onStreamingStateChange('connecting')
-   * 2. 初始化 PeerConnection + onPeerConnectionCreated
-   * 3. 采集媒体源（onBeforeGetUserMedia / onMediaStream）
-   * 4. 轨道挂载（onBeforeAttachStream / onBeforeAttachTrack / onTrackAttached）
-   * 5. 协商（setLocal / signaling / setRemote）
-   * 6. 事件 streamstart + onStreamingStateChange('streaming')
+   * @returns 是否启动成功。
    */
   async start(): Promise<boolean> {
     try {
@@ -141,11 +131,7 @@ export class RtcPublisher extends RtcBase<
   /**
    * 停止推流。
    *
-   * 执行顺序：
-   * 1. onBeforeStop（异步，可等待插件释放资源）
-   * 2. resetSession + releaseSource
-   * 3. 事件 streamstop + onStreamingStateChange('idle')
-   * 4. onAfterStop
+   * @returns Promise。
    */
   async stop(): Promise<void> {
     await this.pluginManager.asyncPipeHook(
@@ -174,9 +160,7 @@ export class RtcPublisher extends RtcBase<
   /**
    * 切换输入源。
    *
-   * 说明：
-   * - 使用 replaceTrack 进行无重协商轨道替换
-   * - 触发 onBeforeReplaceTrack（可改写替换轨道）
+   * @param source 新输入源。
    */
   async switchSource(source: MediaSource): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PUBLISHER_BEFORE_SOURCE_CHANGE);
@@ -239,6 +223,8 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 创建推流会话。
+   *
+   * @param ctx 当前 Hook 上下文。
    */
   protected async createSession(ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
     if (!this.pc) throw new Error('Peer connection not initialized');
@@ -321,14 +307,20 @@ export class RtcPublisher extends RtcBase<
     this.activeTransceivers = [];
   }
 
-  /** 重连策略：重置并重新 start */
+  /**
+   * 重连策略：重置并重新执行 `start`。
+   */
   protected async performReconnect(): Promise<void> {
     this.resetSession();
     this.releaseSource();
     await this.start();
   }
 
-  /** 处理回声/对讲场景的远端 track */
+  /**
+   * 处理远端 track。
+   *
+   * @param event `RTCTrackEvent`。
+   */
   protected onTrack(event: RTCTrackEvent): void {
     const ctx = this.createHookContext(PluginPhase.PUBLISHER_TRACK_ATTACHED);
     const stream = event.streams[0];
@@ -336,12 +328,16 @@ export class RtcPublisher extends RtcBase<
     this.emit('track', { stream, event });
   }
 
-  /** 上一个 connectionState */
+  /** 上一个 connectionState。 */
   private _prevConnectionState: RTCPeerConnectionState = 'new';
-  /** 上一个 iceGatheringState */
+  /** 上一个 iceGatheringState。 */
   private _prevIceGatheringState: RTCIceGatheringState = 'new';
 
-  /** 转发 connectionState 到插件 */
+  /**
+   * 转发 connectionState 到插件。
+   *
+   * @param state 当前连接状态。
+   */
   protected override onConnectionStateChanged(state: RTCPeerConnectionState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
@@ -356,7 +352,11 @@ export class RtcPublisher extends RtcBase<
     );
   }
 
-  /** 转发本地 candidate 到插件 */
+  /**
+   * 转发本地 candidate 到插件。
+   *
+   * @param candidate 本地 candidate。
+   */
   protected override onIceCandidateReceived(candidate: RTCIceCandidate): void {
     const ctx = this._startCtx;
     if (!ctx) return;
@@ -371,7 +371,11 @@ export class RtcPublisher extends RtcBase<
     );
   }
 
-  /** 转发 ICE connection state 到插件 */
+  /**
+   * 转发 ICE connection state 到插件。
+   *
+   * @param state 当前 ICE connection 状态。
+   */
   protected override onIceConnectionStateChanged(state: RTCIceConnectionState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
@@ -383,7 +387,11 @@ export class RtcPublisher extends RtcBase<
     );
   }
 
-  /** 转发 ICE gathering state 到插件（去重） */
+  /**
+   * 转发 ICE gathering state 到插件。
+   *
+   * @param state 当前 ICE gathering 状态。
+   */
   protected override onIceGatheringStateChanged(state: RTCIceGatheringState): void {
     const ctx = this._startCtx;
     if (!ctx) return;
@@ -400,6 +408,9 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 采集指定输入源并更新 localStream。
+   *
+   * @param source 输入源。
+   * @param ctx 当前 Hook 上下文。
    */
   private async acquireSource(
     source: MediaSource,
@@ -448,6 +459,8 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 根据输入源构建媒体采集约束。
+   *
+   * @param s 输入源。
    */
   private buildConstraints(s: MediaSource): MediaStreamConstraints {
     if (s.type === 'screen') {
@@ -477,6 +490,9 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 调用浏览器媒体 API 获取流。
+   *
+   * @param s 输入源。
+   * @param constraints 媒体约束。
    */
   private async requestMedia(
     s: MediaSource,
@@ -519,6 +535,9 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 统一处理权限拒绝类错误。
+   *
+   * @param source 输入源。
+   * @param err 错误对象。
    */
   private handlePermissionError(source: MediaSource, err: Error): void {
     if (
@@ -532,6 +551,8 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 将流轨道绑定到 PeerConnection。
+   *
+   * @param _ctx 当前 Hook 上下文。
    */
   private async attachStream(_ctx: HookContext<RtcPublisherPluginInstance>): Promise<void> {
     if (!this.pc || !this.localStream) return;
@@ -597,6 +618,8 @@ export class RtcPublisher extends RtcBase<
 
   /**
    * 绑定本地 track 生命周期事件（ended/mute/unmute）。
+   *
+   * @param stream 本地流。
    */
   private bindTrackLifecycle(stream: MediaStream): void {
     this.clearTrackListeners();
@@ -657,7 +680,7 @@ export class RtcPublisher extends RtcBase<
   /**
    * 释放媒体源。
    *
-   * @param stream 若传入则只释放指定流，否则释放当前 localStream
+   * @param stream 指定要释放的流；不传则释放当前 `localStream`。
    */
   private releaseSource(stream?: MediaStream): void {
     const target = stream ?? this.localStream;

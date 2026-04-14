@@ -14,12 +14,9 @@ import type {
 } from '../plugins/types';
 
 /**
- * WebRTC 拉流端实现。
+ * WebRTC 拉流端。
  *
- * 主要职责：
- * 1. 建立播放会话（Offer/Answer）
- * 2. 将远端流绑定到目标渲染元素（video/audio/canvas）
- * 3. 在关键生命周期触发插件 Hook
+ * 负责建立播放会话、接收远端流并绑定到渲染目标。
  */
 export class RtcPlayer extends RtcBase<
   RtcPlayerEvents,
@@ -27,23 +24,23 @@ export class RtcPlayer extends RtcBase<
   RtcPlayerPluginInstance,
   PlayerSignalingProvider
 > {
-  /** 渲染目标（可为空，表示仅建立连接不自动渲染） */
+  /** 渲染目标。 */
   private target?: MediaRenderTarget;
-  /** 拉流媒体类型偏好 */
+  /** 拉流媒体类型。 */
   private mediaKind: MediaKind;
-  /** 渲染元素静音状态 */
+  /** 是否静音。 */
   private muted: boolean;
-  /** 当前远端媒体流（收到 track 后更新） */
+  /** 当前远端媒体流。 */
   private _currentStream: MediaStream | null = null;
-  /** 已处理过的远端 track（按 kind+id 去重，避免 ontrack 重复处理） */
+  /** 已处理的远端 track 键。 */
   private _handledRemoteTrackKeys = new Set<string>();
-  /** onBeforeAttachStream 处理后的流缓存（key: 原始 stream.id） */
+  /** 预处理后的流缓存。 */
   private _preparedStreams = new Map<string, MediaStream>();
-  /** 最近一次已绑定渲染的流 ID（用于避免重复 attach） */
+  /** 最近一次绑定的流 ID。 */
   private _renderedStreamId: string | null = null;
-  /** canvas 渲染器（兼容 canvas 目标） */
+  /** canvas 渲染器。 */
   private canvasRenderer = new CanvasRenderer();
-  /** 当前会话上下文，供 base 事件派发复用 */
+  /** 当前会话上下文。 */
   private _sessionCtx: ReturnType<RtcPlayer['createHookContext']> | null = null;
 
   constructor(options: RtcPlayerOptions) {
@@ -63,22 +60,22 @@ export class RtcPlayer extends RtcBase<
     }
   }
 
-  /** 获取当前拉流 URL */
+  /** 获取当前拉流 URL。 */
   getStreamUrl(): string {
     return this.url;
   }
 
-  /** 获取当前绑定的目标渲染元素 */
+  /** 获取当前渲染目标。 */
   getTargetElement(): MediaRenderTarget | undefined {
     return this.target;
   }
 
-  /** 获取当前远端流 */
+  /** 获取当前远端流。 */
   getCurrentStream(): MediaStream | null {
     return this._currentStream;
   }
 
-  /** 获取底层 PeerConnection，用于高级能力（如 getStats） */
+  /** 获取底层 PeerConnection。 */
   getPeerConnection(): RTCPeerConnection | null {
     return this.pc;
   }
@@ -86,11 +83,7 @@ export class RtcPlayer extends RtcBase<
   /**
    * 启动拉流流程。
    *
-   * 执行顺序：
-   * 1. onBeforeConnect（可改写 url / media）
-   * 2. 创建 PeerConnection + onPeerConnectionCreated
-   * 3. 根据 mediaKind 添加 recvonly transceiver
-   * 4. createSession 完成协商
+   * @returns 是否启动成功。
    */
   async play(): Promise<boolean> {
     try {
@@ -131,7 +124,8 @@ export class RtcPlayer extends RtcBase<
 
   /**
    * 切换拉流地址。
-   * 会重置当前会话并重新发起 play。
+   *
+   * @param url 新的拉流地址。
    */
   async switchStream(url: string): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PLAYER_BEFORE_SWITCH_STREAM);
@@ -153,12 +147,7 @@ export class RtcPlayer extends RtcBase<
   }
 
   /**
-   * 创建播放会话（Offer/Answer）。
-   *
-   * 插件扩展点：
-   * - onBeforeSetLocalDescription
-   * - onBeforeSignalingRequest / onAfterSignalingResponse / onSignalingError
-   * - onBeforeSetRemoteDescription / onRemoteDescriptionSet
+   * 创建播放会话。
    */
   protected async createSession(): Promise<void> {
     const ctx = this.createHookContext(PluginPhase.PLAYER_CONNECTING);
@@ -230,12 +219,16 @@ export class RtcPlayer extends RtcBase<
     );
   }
 
-  /** 上次连接状态（用于构造 previousState） */
+  /** 上次连接状态。 */
   private _prevConnectionState: RTCPeerConnectionState = 'new';
-  /** 上次 ICE gathering 状态（用于去重） */
+  /** 上次 ICE gathering 状态。 */
   private _prevIceGatheringState: RTCIceGatheringState = 'new';
 
-  /** 转发 connectionState 变化到插件系统 */
+  /**
+   * 转发连接状态变化到插件系统。
+   *
+   * @param state 当前连接状态。
+   */
   protected override onConnectionStateChanged(state: RTCPeerConnectionState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
@@ -250,7 +243,11 @@ export class RtcPlayer extends RtcBase<
     );
   }
 
-  /** 转发本地 ICE candidate 到插件系统 */
+  /**
+   * 转发本地 ICE candidate 到插件系统。
+   *
+   * @param candidate 本地 candidate。
+   */
   protected override onIceCandidateReceived(candidate: RTCIceCandidate): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
@@ -265,7 +262,11 @@ export class RtcPlayer extends RtcBase<
     );
   }
 
-  /** 转发 ICE connection state 到插件系统 */
+  /**
+   * 转发 ICE connection state 到插件系统。
+   *
+   * @param state 当前 ICE connection 状态。
+   */
   protected override onIceConnectionStateChanged(state: RTCIceConnectionState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
@@ -277,7 +278,11 @@ export class RtcPlayer extends RtcBase<
     );
   }
 
-  /** 转发 ICE gathering state 到插件系统（去重） */
+  /**
+   * 转发 ICE gathering state 到插件系统。
+   *
+   * @param state 当前 ICE gathering 状态。
+   */
   protected override onIceGatheringStateChanged(state: RTCIceGatheringState): void {
     const ctx = this._sessionCtx;
     if (!ctx) return;
@@ -292,7 +297,9 @@ export class RtcPlayer extends RtcBase<
     }
   }
 
-  /** 重置当前播放会话 */
+  /**
+   * 重置当前播放会话。
+   */
   protected resetSession(): void {
     this._currentStream = null;
     this._handledRemoteTrackKeys.clear();
@@ -312,7 +319,9 @@ export class RtcPlayer extends RtcBase<
     }
   }
 
-  /** 重连流程：重置后重新 play */
+  /**
+   * 重连流程：重置后重新执行 `play`。
+   */
   protected async performReconnect(): Promise<void> {
     this.resetSession();
     await this.play();
@@ -321,11 +330,7 @@ export class RtcPlayer extends RtcBase<
   /**
    * 处理远端 track 到达。
    *
-   * 执行顺序：
-   * 1. onTrack
-   * 2. onBeforeAttachStream（可替换 stream）
-   * 3. 绑定渲染目标
-   * 4. 渲染就绪后 onMediaReady
+   * @param event `RTCTrackEvent`。
    */
   protected onTrack(event: RTCTrackEvent): void {
     const stream = event.streams[0];
@@ -408,7 +413,9 @@ export class RtcPlayer extends RtcBase<
     };
   }
 
-  /** 销毁播放器实例 */
+  /**
+   * 销毁播放器实例。
+   */
   public override destroy(): void {
     this.canvasRenderer.stop();
     super.destroy();

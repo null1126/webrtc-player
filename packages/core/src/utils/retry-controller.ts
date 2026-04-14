@@ -1,5 +1,7 @@
 /**
- * RetryController 配置项。
+ * 重试控制器配置。
+ *
+ * @typeParam T 无。
  */
 export interface RetryControllerOptions {
   /**
@@ -119,11 +121,11 @@ export class RetryController {
   private maxInterval?: number;
   private jitterRatio?: number;
 
-  /** 当前挂起的重试定时器（若存在） */
+  /** 当前挂起的重试定时器。 */
   private timer: ReturnType<typeof setTimeout> | null = null;
-  /** 已触发的重试次数（从 0 开始内部计数） */
+  /** 已触发的重试次数。 */
   private retryCount = 0;
-  /** 是否已销毁；销毁后调度将失效 */
+  /** 是否已销毁。 */
   private disposed = false;
 
   private callbacks: RetryControllerCallbacks;
@@ -131,8 +133,8 @@ export class RetryController {
   /**
    * 创建一个重试调度器。
    *
-   * @param options 重试策略配置
-   * @param callbacks 生命周期回调
+   * @param options 重试策略配置。
+   * @param callbacks 生命周期回调。
    */
   constructor(options: RetryControllerOptions = {}, callbacks: RetryControllerCallbacks = {}) {
     this.enabled = options.enabled ?? true;
@@ -145,7 +147,7 @@ export class RetryController {
   }
 
   /**
-   * 返回当前累计重试次数（从 0 开始）。
+   * 返回当前累计重试次数。
    */
   get count(): number {
     return this.retryCount;
@@ -154,14 +156,7 @@ export class RetryController {
   /**
    * 安排一次重试任务。
    *
-   * 行为说明：
-   * - 若未启用 / 已销毁 / 已存在挂起定时器，则直接忽略。
-   * - 只会创建“一个”定时器，防止并发 schedule 造成重复触发。
-   * - 定时器触发后：
-   *   1) 若已达最大次数 -> 触发 onExhausted，结束
-   *   2) 否则递增 retryCount，触发 onRetry，再执行 task
-   *
-   * @param task 实际要执行的异步重试任务
+   * @param task 要执行的重试任务。
    */
   schedule(task: () => Promise<void>): void {
     if (!this.enabled || this.disposed || this.timer !== null) {
@@ -191,10 +186,6 @@ export class RetryController {
 
   /**
    * 取消当前已安排但尚未执行的重试任务。
-   *
-   * 注意：
-   * - 不会清空 retryCount
-   * - 适合“临时中断调度，但保留历史重试次数”的场景
    */
   cancelScheduled(): void {
     if (this.timer !== null) {
@@ -205,12 +196,6 @@ export class RetryController {
 
   /**
    * 重置调度器状态。
-   *
-   * 行为：
-   * - 取消挂起定时器
-   * - 将 retryCount 清零
-   *
-   * 适合“连接恢复成功后重新开始计数”的场景。
    */
   reset(): void {
     this.cancelScheduled();
@@ -219,11 +204,6 @@ export class RetryController {
 
   /**
    * 销毁调度器。
-   *
-   * 行为：
-   * - 取消挂起定时器
-   * - 清零计数
-   * - 标记为 disposed（后续 schedule 永远不会生效）
    */
   dispose(): void {
     this.cancelScheduled();
@@ -232,14 +212,9 @@ export class RetryController {
   }
 
   /**
-   * 计算下一次调度延迟（毫秒）。
+   * 计算下一次调度延迟。
    *
-   * 流程：
-   * 1) 计算基础延迟（固定 or 指数退避）
-   * 2) 应用 maxInterval 上限（若设置）
-   * 3) 应用 jitter 随机抖动（若设置且 > 0）
-   *
-   * @param exponent 指数退避的指数（通常使用当前 retryCount）
+   * @param exponent 指数退避指数。
    */
   private getNextDelay(exponent: number): number {
     const base = this.exponential ? this.interval * Math.pow(2, exponent) : this.interval;

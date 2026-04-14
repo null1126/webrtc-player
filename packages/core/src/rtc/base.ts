@@ -8,25 +8,19 @@ import { PluginPhase } from '../plugins/types';
 import type { AnyPlugin, HookContext } from '../plugins/types';
 
 /**
- * 内部重连状态机。
- * - idle: 空闲，未触发重连
- * - pending: 已进入重连流程（可能在等待定时器或执行中）
- * - max_retries: 达到最大重试次数，等待上层感知与处理
+ * 重连状态。
  */
 type ReconnectState = 'idle' | 'pending' | 'max_retries';
 
 /**
- * RTC 基类，封装 Player/Publisher 的公共能力。
+ * RTC 基类。
  *
- * 提供：
- * 1. PeerConnection 生命周期管理
- * 2. 通用事件系统（状态、错误、ICE）
- * 3. 自动重连调度（可配置重试策略）
- * 4. 插件 Hook 上下文桥接
+ * 封装 PeerConnection、事件分发、重连调度与插件 Hook 上下文。
  *
- * 子类职责：
- * - 实现会话创建/重置/重连策略
- * - 处理远端 track 逻辑
+ * @typeParam TEvents 事件类型。
+ * @typeParam TPlugin 插件类型。
+ * @typeParam TInstance 宿主实例类型。
+ * @typeParam TSignaling 信令实现类型。
  */
 export abstract class RtcBase<
   TEvents extends RtcBaseEvents = RtcBaseEvents,
@@ -34,39 +28,39 @@ export abstract class RtcBase<
   TInstance = unknown,
   TSignaling = SignalingProvider,
 > {
-  /** 当前 RTCPeerConnection 实例 */
+  /** 当前 `RTCPeerConnection` 实例。 */
   protected pc: RTCPeerConnection | null = null;
-  /** 事件发射器 */
+  /** 事件发射器。 */
   protected emitter = new EventEmitter<TEvents>();
-  /** 当前会话 URL */
+  /** 当前会话 URL。 */
   protected url: string;
-  /** 信令实现 */
+  /** 信令实现。 */
   protected signaling: TSignaling;
-  /** 插件调度器 */
+  /** 插件管理器。 */
   protected pluginManager: PluginManager<TPlugin, TInstance>;
 
-  /** 是否启用重连 */
+  /** 是否启用重连。 */
   private _reconnectEnabled = true;
-  /** 最大重连次数 */
+  /** 最大重连次数。 */
   private _reconnectMaxRetries = 5;
-  /** 当前重连状态 */
+  /** 当前重连状态。 */
   private _reconnectState: ReconnectState = 'idle';
-  /** 重连调度控制器 */
+  /** 重连调度控制器。 */
   private _retryController: RetryController | null = null;
-  /** disconnected 兜底延迟 */
+  /** `disconnected` 状态兜底延迟。 */
   private _disconnectedTimeout = 5000;
-  /** disconnected 状态兜底定时器 */
+  /** `disconnected` 状态兜底定时器。 */
   private _disconnectedTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** 是否等待 ICE 收集完成后再发起信令交换 */
+  /** 是否等待 ICE 收集完成后再发起信令交换。 */
   protected _waitForIceComplete = true;
-  /** ICE 收集等待超时时间 */
+  /** ICE 收集等待超时时间。 */
   protected _iceGatheringTimeout = 3000;
 
   /**
-   * @param options RTC 公共配置（URL、重连、ICE 等）
-   * @param signaling 信令实现（支持注入自定义 provider）
-   * @param pluginManager 插件调度器
+   * @param options RTC 基础配置。
+   * @param signaling 信令实现。
+   * @param pluginManager 插件管理器。
    */
   constructor(
     options: RtcBaseOptions,
@@ -110,7 +104,7 @@ export abstract class RtcBase<
   /**
    * 注册插件。
    *
-   * @returns 返回当前实例，支持链式调用。
+   * @param plugin 插件实例。
    */
   use(plugin: TPlugin): this {
     this.pluginManager.use(plugin);
@@ -120,8 +114,7 @@ export abstract class RtcBase<
   /**
    * 卸载插件。
    *
-   * @param name 插件唯一名称
-   * @returns 返回当前实例，支持链式调用。
+   * @param name 插件名称。
    */
   unuse(name: string): this {
     this.pluginManager.unuse(name);
@@ -130,6 +123,9 @@ export abstract class RtcBase<
 
   /**
    * 订阅事件。
+   *
+   * @param event 事件名。
+   * @param listener 监听回调。
    */
   on<K extends keyof TEvents>(event: K, listener: (data: TEvents[K]) => void): void {
     this.emitter.on(event, listener);
@@ -137,6 +133,9 @@ export abstract class RtcBase<
 
   /**
    * 取消事件订阅。
+   *
+   * @param event 事件名。
+   * @param listener 监听回调。
    */
   off<K extends keyof TEvents>(event: K, listener: (data: TEvents[K]) => void): void {
     this.emitter.off(event, listener);
@@ -144,29 +143,37 @@ export abstract class RtcBase<
 
   /**
    * 订阅一次性事件。
+   *
+   * @param event 事件名。
+   * @param listener 监听回调。
    */
   once<K extends keyof TEvents>(event: K, listener: (data: TEvents[K]) => void): void {
     this.emitter.once(event, listener);
   }
 
   /**
-   * 触发事件（提供给子类使用）。
+   * 触发事件。
+   *
+   * @param event 事件名。
+   * @param data 事件数据。
    */
   protected emit<K extends keyof TEvents>(event: K, data: TEvents[K]) {
     this.emitter.emit(event, data);
   }
 
   /**
-   * 创建 HookContext。
+   * 创建 Hook 上下文。
    *
-   * @param phase 当前调用阶段标识
+   * @param phase 生命周期阶段。
    */
   protected createHookContext(phase: string): HookContext<TInstance> {
     return this.pluginManager.createContext(phase);
   }
 
   /**
-   * 初始化 PeerConnection 并绑定基础事件。
+   * 初始化 `RTCPeerConnection` 并绑定基础事件。
+   *
+   * @param config PeerConnection 配置。
    */
   protected initPeerConnection(config?: RTCConfiguration) {
     this.pc = new RTCPeerConnection(config);
@@ -174,12 +181,9 @@ export abstract class RtcBase<
   }
 
   /**
-   * 绑定 PC 公共事件：
-   * - connection state
-   * - ICE candidate
-   * - ICE connection state
-   * - ICE gathering state
-   * - remote track
+   * 绑定 `RTCPeerConnection` 公共事件。
+   *
+   * @param pc `RTCPeerConnection` 实例。
    */
   protected bindPcEvents(pc: RTCPeerConnection): void {
     pc.onconnectionstatechange = () => {
@@ -220,29 +224,37 @@ export abstract class RtcBase<
   }
 
   /**
-   * 连接状态变化扩展点（由子类覆盖）。
+   * 连接状态变化回调。
+   *
+   * @param _state 连接状态。
    */
   protected onConnectionStateChanged(_state: RTCPeerConnectionState): void {}
 
   /**
-   * 收到本地 ICE candidate 扩展点（由子类覆盖）。
+   * 收到本地 ICE candidate 回调。
+   *
+   * @param _candidate ICE candidate。
    */
   protected onIceCandidateReceived(_candidate: RTCIceCandidate): void {}
 
   /**
-   * ICE 连接状态变化扩展点（由子类覆盖）。
+   * ICE 连接状态变化回调。
+   *
+   * @param _state ICE 连接状态。
    */
   protected onIceConnectionStateChanged(_state: RTCIceConnectionState): void {}
 
   /**
-   * ICE 收集状态变化扩展点（由子类覆盖）。
+   * ICE 收集状态变化回调。
+   *
+   * @param _state ICE 收集状态。
    */
   protected onIceGatheringStateChanged(_state: RTCIceGatheringState): void {}
 
   /**
-   * 等待 ICE 收集完成（非 Trickle ICE 场景）。
+   * 等待 ICE 收集完成。
    *
-   * @param timeoutMs 超时时间，超时后继续流程以避免阻塞
+   * @param timeoutMs 超时时间，单位毫秒。
    */
   protected waitForIceGatheringComplete(timeoutMs = this._iceGatheringTimeout): Promise<void> {
     if (!this._waitForIceComplete || !this.pc) {
@@ -303,11 +315,9 @@ export abstract class RtcBase<
 
   /**
    * 统一错误发射入口。
-   * - 先触发插件 onError
-   * - 再发射基础 error 事件
    *
-   * @param err 原始错误
-   * @param context 可选上下文标识（便于排查）
+   * @param err 原始错误。
+   * @param context 可选上下文标识。
    */
   protected emitError(err: unknown, context?: string) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -319,14 +329,6 @@ export abstract class RtcBase<
 
   /**
    * 销毁 RTC 实例。
-   *
-   * 执行顺序：
-   * 1. 停止重连调度
-   * 2. onPreDestroy
-   * 3. 卸载全部插件
-   * 4. 关闭 PeerConnection
-   * 5. onPostDestroy
-   * 6. 发射 DESTROYED 状态
    */
   destroy() {
     this._retryController?.dispose();
@@ -353,7 +355,6 @@ export abstract class RtcBase<
 
   /**
    * 返回 destroy 流程的 phase 标识。
-   * 子类可覆盖以区分 player/publisher 销毁阶段。
    */
   protected getDestroyPhase(): string {
     return PluginPhase.PLAYER_DESTROY;
@@ -368,6 +369,9 @@ export abstract class RtcBase<
 
   /**
    * 将原生 RTCPeerConnectionState 映射为 SDK 的 RtcState。
+   *
+   * @param state 原生连接状态。
+   * @returns 映射后的 SDK 连接状态。
    */
   protected mapConnectionState(state: RTCPeerConnectionState): RtcState {
     const map: Record<RTCPeerConnectionState, RtcState> = {
@@ -384,8 +388,8 @@ export abstract class RtcBase<
   /**
    * 根据连接来源和状态判断是否启动重连。
    *
-   * @param state 当前连接状态
-   * @param source 状态来源（connection / ice）
+   * @param state 当前连接状态。
+   * @param source 状态来源。
    */
   private handleConnectionFailure(
     state: RTCPeerConnectionState | RTCIceConnectionState,
@@ -432,7 +436,7 @@ export abstract class RtcBase<
   }
 
   /**
-   * 为 disconnected 状态设置兜底重连调度。
+   * 为 `disconnected` 状态设置兜底重连调度。
    */
   private scheduleDisconnectedFallback(): void {
     this.clearDisconnectedTimer();
@@ -443,7 +447,7 @@ export abstract class RtcBase<
   }
 
   /**
-   * 清理 disconnected 兜底定时器。
+   * 清理 `disconnected` 兜底定时器。
    */
   private clearDisconnectedTimer(): void {
     if (this._disconnectedTimer !== null) {
@@ -466,8 +470,8 @@ export abstract class RtcBase<
   /**
    * 重置重连状态。
    *
-   * @param notifySuccess 是否触发 onReconnected
-   * @param resetCount 是否重置重试计数（否则仅取消调度）
+   * @param notifySuccess 是否触发重连成功通知。
+   * @param resetCount 是否重置重试计数。
    */
   private resetReconnect(notifySuccess: boolean, resetCount = true): void {
     const hasRetried = (this._retryController?.count ?? 0) > 0;
@@ -489,11 +493,6 @@ export abstract class RtcBase<
 
   /**
    * 执行重连动作。
-   *
-   * 注意：
-   * - performReconnect 成功仅表示“已重新发起连接流程”，并不代表已 connected。
-   * - 因此无论成功/失败，都要在本轮结束后释放 pending，
-   *   以便后续再次进入 failed 时还能触发下一次重连。
    */
   private async doReconnect(): Promise<void> {
     try {

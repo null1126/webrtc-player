@@ -5,11 +5,8 @@ import { formatTime, getSourceName, nextId } from './utils';
 /**
  * 创建推流日志插件。
  *
- * 该插件关注推流端关键生命周期：
- * - 连接与 ICE 变化
- * - 信令请求/响应/错误
- * - 输入源切换与轨道状态
- * - 停止与销毁流程
+ * @param options 插件配置。
+ * @param callback 日志回调。
  */
 export function createPublisherLoggerPlugin(
   options: LoggerPluginOptions = {},
